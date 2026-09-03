@@ -162,7 +162,7 @@ try {
       noTabs: document.querySelectorAll('.tab-btn, [id^="page-"]').length,
       hasStatus: !!document.querySelector('#status .st-bar'),
     }));
-    check('pipeline has 4 stages',   struct.cols.length === 4, struct.cols.join(' -> '));
+    check('pipeline has 5 named stages', struct.cols.length === 5, struct.cols.join(' -> '));
     check('old tab structure gone',  struct.noTabs === 0, struct.noTabs + ' leftovers');
     check('status bar in workspace', struct.hasStatus);
 
@@ -184,7 +184,7 @@ try {
       if (!card) return { skipped: true, why: 'no draft card' };
       card.click();
       await new Promise(r => setTimeout(r, 280));
-      const btn = document.querySelector('.seg--status .seg-b[data-s="approvato"]');
+      const btn = document.querySelector('.statelist .state[data-s="approvato"]');
       if (!btn) return { skipped: true, why: 'no status control' };
       btn.click();
       await new Promise(r => setTimeout(r, 280));
@@ -285,6 +285,160 @@ try {
       spon.skipped ? spon.why : spon.was + ' -> ' + spon.now);
     check('sponsored badge on the frame', !spon.skipped && spon.badge === true);
 
+
+    /* ── Named statuses ───────────────────────────────────────────────────
+       The control was a row of bare tokens; the words are what make it
+       readable to someone who has not learned [??] yet. */
+    const states = await page.evaluate(async () => {
+      const card = document.querySelector('.card');
+      if (!card) return { skipped: true, why: 'no card' };
+      card.click();
+      await new Promise(r => setTimeout(r, 300));
+      const rows = [...document.querySelectorAll('.statelist .state')];
+      return {
+        count: rows.length,
+        labels: rows.map(r => (r.querySelector('.state-lbl') || {}).textContent),
+        tokens: rows.map(r => (r.querySelector('.state-tok') || {}).textContent),
+        selected: rows.filter(r => r.getAttribute('aria-checked') === 'true').length,
+      };
+    });
+    check('status list shows 5 options', !states.skipped && states.count === 5,
+      states.skipped ? states.why : states.count + '');
+    check('each status has a word, not just a token',
+      !states.skipped && states.labels.every(l => l && l.length > 3),
+      (states.labels || []).join(' / '));
+    check('tokens are kept alongside the words',
+      !states.skipped && states.tokens.every(t => /\[.{2}\]/.test(t || '')),
+      (states.tokens || []).join(' '));
+    check('exactly one status selected', !states.skipped && states.selected === 1);
+
+    /* ── One post, several channels ───────────────────────────────────────
+       Ticking a second channel should create that channel's copy — same
+       content, its own approval state — rather than making you build it
+       twice. */
+    const multi = await page.evaluate(async () => {
+      // A client with two accounts.
+      const c = App.clients().find(x => (x.accounts || []).length > 1);
+      if (!c) return { skipped: true, why: 'no multi-account client' };
+      location.hash = '#/content/' + c.id;
+      await new Promise(r => setTimeout(r, 420));
+      App.set({ view: 'board', accountId: c.accounts[0].id });
+      await new Promise(r => setTimeout(r, 350));
+
+      const card = document.querySelector('.card');
+      if (!card) return { skipped: true, why: 'no card' };
+      card.click();
+      await new Promise(r => setTimeout(r, 320));
+
+      const id = App.state.selectedId;
+      const item = App.itemById(id);
+      const before = App.targetsOf(item).length;
+      const beforeOther = (window.IdeologyStore.getFeed(c.accounts[1].id, App.state.month) || []).length;
+
+      const boxes = [...document.querySelectorAll('.target')];
+      const off = boxes.find(b => b.getAttribute('aria-checked') === 'false');
+      if (!off) return { skipped: true, why: 'both channels already on' };
+      off.click();
+      await new Promise(r => setTimeout(r, 400));
+
+      const after = App.targetsOf(App.itemById(id)).length;
+      const afterOther = (window.IdeologyStore.getFeed(c.accounts[1].id, App.state.month) || []).length;
+
+      // The copy must carry the same content and its own state.
+      const gid = App.itemById(id).groupId;
+      const sibs = App.groupSiblings(gid);
+      const src = App.itemById(id);
+      const clone = (sibs.find(x => x.item.id !== id) || {}).item;
+
+      // Editing the caption must reach the clone.
+      App.patchItem(id, { copy: 'SYNC TEST' });
+      await new Promise(r => setTimeout(r, 300));
+      const cloneAfter = App.groupSiblings(gid).find(x => x.item.id !== id);
+
+      return {
+        before, after, beforeOther, afterOther,
+        sameImage: clone ? clone.url === src.url : false,
+        cloneIsDraft: clone ? clone.apprStato === 'bozza' : false,
+        captionSynced: cloneAfter ? cloneAfter.item.copy === 'SYNC TEST' : false,
+        marker: !!document.querySelector('.card-links'),
+      };
+    });
+
+    if (multi.skipped) {
+      check('multi-channel publishing', false, multi.why);
+    } else {
+      check('adding a channel grows the target list',
+        multi.after === multi.before + 1, multi.before + ' -> ' + multi.after);
+      check('the other account gains a copy',
+        multi.afterOther === multi.beforeOther + 1,
+        multi.beforeOther + ' -> ' + multi.afterOther);
+      check('the copy carries the same media', multi.sameImage === true);
+      check('the copy starts as its own draft', multi.cloneIsDraft === true);
+      check('editing content syncs across channels', multi.captionSynced === true);
+      check('grid marks a multi-channel post', multi.marker === true);
+    }
+
+    /* ── Deselecting the current channel ──────────────────────────────────
+       Reported bug: ticking OFF the account you are currently viewing did
+       nothing -- the click registered but the box never cleared. Cause:
+       setTargets() protected the copy under the cursor from its own removal
+       list, so removal never reached it. Continuing straight on from the
+       "multi" block above, the post is now on two channels; this turns the
+       FIRST one back off, which is exactly the case that was broken. */
+    const deselect = await page.evaluate(async () => {
+      if (!App.state.selectedId) return { skipped: true, why: 'no post selected' };
+      const startAccount = App.state.accountId;
+      const id = App.state.selectedId;
+      const before = App.targetsOf(App.itemById(id)).length;
+      if (before < 2) return { skipped: true, why: 'post is not on 2 channels' };
+
+      const onBox = [...document.querySelectorAll('.target')]
+        .find(b => b.getAttribute('aria-checked') === 'true');
+      if (!onBox) return { skipped: true, why: 'no checked channel found' };
+      onBox.click();
+      await new Promise(r => setTimeout(r, 400));
+
+      // The old copy is deleted outright; the panel should now be showing
+      // its surviving sibling under a different id and a different account.
+      // Re-query the DOM fresh rather than reuse onBox -- clicking triggers
+      // a full inspector re-render (A.clear + rebuild), which detaches the
+      // original node; its own attributes freeze at click-time and checking
+      // them again proves nothing about what actually painted afterward.
+      const oldGone = !App.itemById(id);
+      const now = App.itemById(App.state.selectedId);
+      const checkedNow = document.querySelectorAll('.target[aria-checked="true"]').length;
+      return {
+        before,
+        after: now ? App.targetsOf(now).length : -1,
+        oldCopyDeleted: oldGone,
+        stillHasSelection: !!App.state.selectedId,
+        accountChanged: App.state.accountId !== startAccount,
+        checkedBoxesNow: checkedNow,
+      };
+    });
+    if (deselect.skipped) {
+      check('deselect current channel', false, deselect.why);
+    } else {
+      check('the panel reflects the new state (1 box checked, not 2)',
+        deselect.checkedBoxesNow === 1, deselect.checkedBoxesNow + ' checked');
+      check('deselecting drops the target count', deselect.after === deselect.before - 1,
+        deselect.before + ' -> ' + deselect.after);
+      check('inspector follows to the surviving channel',
+        deselect.stillHasSelection && deselect.accountChanged);
+      check("the deselected channel's own copy is gone", deselect.oldCopyDeleted === true);
+    }
+
+    /* The very last channel must stay locked -- a post cannot go out nowhere. */
+    const lastLock = await page.evaluate(async () => {
+      const boxes = [...document.querySelectorAll('.target')];
+      const on = boxes.find(b => b.getAttribute('aria-checked') === 'true');
+      if (!on) return { skipped: true };
+      return { disabled: on.disabled === true || on.hasAttribute('disabled') };
+    });
+    if (!lastLock.skipped) {
+      check('the last remaining channel cannot be unticked', lastLock.disabled === true);
+    }
+
     /* Command palette. */
     const pal = await page.evaluate(async () => {
       document.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', metaKey: true, bubbles: true }));
@@ -323,6 +477,27 @@ try {
     check('renders posts',        p.posts > 0, p.posts + ' posts');
     check('shows ratio',          !!p.ratio, p.ratio);
     check('dark ground',          p.bg === 'rgb(16, 16, 16)', p.bg);
+
+    /* -- Per-client portal theme --------------------------------------------
+       Every portal used to be black regardless of the client. A client's
+       theme is now stored on their own record and applied via data-theme at
+       boot; this opens a SECOND client's portal (Nodo Studio, seeded with
+       theme:'light') in a fresh page to prove the choice is actually
+       per-client, not a global flip -- Marefuori above must stay dark while
+       this one goes white in the same browser session. */
+    const light = await open(browser, BASE + '/client?t=nd5a12c88e47');
+    const lp = await light.page.evaluate(() => ({
+      dataTheme: document.documentElement.getAttribute('data-theme'),
+      bg: getComputedStyle(document.body).backgroundColor,
+      text: getComputedStyle(document.body).color,
+      client: (document.querySelector('.cv-client') || {}).textContent,
+    }));
+    check('light-theme client renders data-theme=light', lp.dataTheme === 'light', lp.dataTheme);
+    check('light-theme portal ground is white', lp.bg === 'rgb(255, 255, 255)', lp.bg);
+    check('light-theme portal text is dark, not washed out',
+      lp.text === 'rgb(16, 16, 16)', lp.text);
+    check('opened the right client', lp.client === 'Nodo Studio', lp.client);
+    await light.page.close();
 
     /* XSS regression. The portal this replaced interpolated captions into
        innerHTML; with 'unsafe-inline' in the CSP that executed. */

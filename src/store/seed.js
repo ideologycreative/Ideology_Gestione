@@ -88,6 +88,12 @@ window.IdeologySeed = (function () {
     {
       id: 'c_nodo', name: 'Nodo Studio', slug: 'nodo-studio',
       color: '#f37c7b', shareToken: 'nd5a12c88e47',
+      /* Architecture studio, "molto curata" -- the one seeded client whose
+         own work reads better on white than on the same black every other
+         portal uses. Demonstrates the per-client theme out of the box
+         instead of leaving it a feature nobody notices until they dig for
+         it in Clienti. */
+      theme: 'light',
       tipo: 'oneshot', status: 'Attivo', pkg: 'Starter',
       pkgHours: 10, budget: 3500, progettoNome: 'Rebrand + sito', progettoDeadline: '2026-12-18',
       referente: { nome: 'Marco Failla', email: 'marco@nodostudio.it', tel: '+39 0932 778 401' },
@@ -237,6 +243,10 @@ window.IdeologySeed = (function () {
   function statoFor(dayIndex, total, rand) {
     const progress = dayIndex / total;
     const r = rand();
+    /* The oldest slice of the month has already gone out — otherwise the
+       'Pubblicato' column is permanently empty in the demo and the last stage
+       of the pipeline looks broken. */
+    if (progress < 0.2)  return r < 0.75 ? 'pubblicato' : 'approvato';
     if (progress < 0.45) return r < 0.9 ? 'approvato' : 'approvare';
     if (progress < 0.7)  return r < 0.5 ? 'approvare' : (r < 0.75 ? 'revisione' : 'approvato');
     return r < 0.65 ? 'bozza' : 'approvare';

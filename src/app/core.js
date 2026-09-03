@@ -38,11 +38,21 @@ window.App = (function () {
   var MONTHS = ['Gennaio','Febbraio','Marzo','Aprile','Maggio','Giugno',
                 'Luglio','Agosto','Settembre','Ottobre','Novembre','Dicembre'];
 
+  /* The pipeline. The token is a fixed-width marker that lets a column of
+     these scan like a log; the WORD is what makes it readable to anyone who
+     has not learned the tokens yet. Both, everywhere — a symbol-only status
+     is fast for the person who built it and opaque to everyone else. */
   var STATUSES = [
-    { id: 'bozza',     token: '[··]', label: 'Bozza',     hint: 'Non ancora inviato al cliente' },
-    { id: 'approvare', token: '[??]', label: 'In attesa', hint: 'Inviato, il cliente deve rispondere' },
-    { id: 'revisione', token: '[!!]', label: 'Revisione', hint: 'Il cliente ha chiesto una modifica' },
-    { id: 'approvato', token: '[OK]', label: 'Approvato', hint: 'Pronto a uscire' },
+    { id: 'bozza',      token: '[··]', label: 'Bozza',      short: 'Bozza',
+      hint: 'In lavorazione, non ancora inviato al cliente' },
+    { id: 'approvare',  token: '[??]', label: 'Da approvare', short: 'Attesa',
+      hint: 'Inviato al cliente, in attesa di risposta' },
+    { id: 'revisione',  token: '[!!]', label: 'In revisione', short: 'Revisione',
+      hint: 'Il cliente ha chiesto una modifica' },
+    { id: 'approvato',  token: '[OK]', label: 'Approvato',  short: 'Approvato',
+      hint: 'Approvato dal cliente, pronto a uscire' },
+    { id: 'pubblicato', token: '[>>]', label: 'Pubblicato', short: 'Online',
+      hint: 'Uscito online' },
   ];
 
   var TYPES = [
@@ -235,6 +245,13 @@ window.App = (function () {
       id: newId('c_'),
       name: 'Nuovo cliente',
       color: '#F2C700',
+      /* Portal background. 'dark' matches the studio's own identity and is
+         the default; 'light' is there for a brand whose own work reads
+         better on white -- a gallery, an architecture studio, anything where
+         a black ground would fight the client's own aesthetic rather than
+         frame it. Set per client, never global: the studio stays one
+         identity, the portals are allowed to be several. */
+      theme: 'dark',
       logo: '',
       note: '',
       shareToken: newToken(),
@@ -383,6 +400,128 @@ window.App = (function () {
     return found;
   }
 
+  /* ── Cross-account access ───────────────────────────────────────────────
+     readKind/writeKind above are scoped to the ACTIVE account, which is right
+     for the views. Group operations need to reach an item sitting in a
+     sibling account, so these take the account explicitly. */
+
+  function readAcc(accId, kind) {
+    var list = kind === 'story'
+      ? S.getStories(accId, state.month)
+      : S.getFeed(accId, state.month);
+    return (list || []).slice();
+  }
+
+  function writeAcc(accId, kind, items) {
+    if (kind === 'story') S.setStories(accId, state.month, items);
+    else                  S.setFeed(accId, state.month, items);
+  }
+
+  /* Every copy of a piece of content across this client's accounts, for the
+     current month. One post targeting Instagram and Facebook is stored as two
+     records sharing a groupId — each platform keeps its own feed position and
+     its own approval state, because a client can approve on one channel and
+     ask for changes on the other. */
+  function groupSiblings(groupId) {
+    var c = client();
+    if (!c || !groupId) return [];
+    var out = [];
+    (c.accounts || []).forEach(function (a) {
+      ['feed', 'story'].forEach(function (kind) {
+        readAcc(a.id, kind).forEach(function (it) {
+          if (it.groupId === groupId) out.push({ accountId: a.id, kind: kind, item: it });
+        });
+      });
+    });
+    return out;
+  }
+
+  /* Which accounts this content currently goes out on. */
+  function targetsOf(item) {
+    if (!item) return [];
+    if (!item.groupId) {
+      var acc = account();
+      return acc ? [acc.id] : [];
+    }
+    return groupSiblings(item.groupId).map(function (r) { return r.accountId; });
+  }
+
+  /* Fields that describe the CONTENT, so they stay identical across every
+     channel it goes out on. Everything else — approval state, the client's
+     note, revision count, feed position — is per-channel on purpose. */
+  var SHARED_FIELDS = ['url', 'externalUrl', 'videoUrl', 'slides',
+                       'copy', 'note', 'date', 'pilastro', 'formato',
+                       'type', 'sponsored'];
+
+  /* Add or remove channels for a piece of content. Adding clones the content
+     into that account's feed; removing deletes that channel's copy. The copy
+     you are editing is never removed by this. */
+  function setTargets(id, accountIds) {
+    var item = itemById(id);
+    if (!item) return;
+
+    // Give it a group the first time it needs one.
+    var gid = item.groupId;
+    if (!gid) {
+      gid = newId('g_');
+      patchItem(id, { groupId: gid });
+      item = itemById(id) || item;
+    }
+
+    var current = groupSiblings(gid);
+    var have = current.map(function (r) { return r.accountId; });
+    var self = current.find(function (r) { return r.item.id === id; });
+    var selfAcc = self ? self.accountId : (account() || {}).id;
+    var kind = item._kind || 'feed';
+
+    // Additions
+    accountIds.forEach(function (accId) {
+      if (have.indexOf(accId) >= 0) return;
+      var clone = Object.assign({}, item, {
+        id: newId('i_'),
+        groupId: gid,
+        /* A new channel starts as a draft of its own. Carrying the source's
+           approval across would mean a client had "approved" a post on a
+           platform they were never shown. */
+        apprStato: 'bozza',
+        apprRevisions: 0,
+        clientNote: '', apprNote: '', clientName: '',
+      });
+      delete clone._kind;
+      writeAcc(accId, kind, [clone].concat(readAcc(accId, kind)));
+    });
+
+    /* Removals, INCLUDING the channel currently being viewed.
+     *
+     * This used to skip the copy under the cursor — the intent was "do not
+     * delete the thing being edited", but the effect was that the channel you
+     * were on could never be unticked: the click registered, the box cleared,
+     * and nothing happened. Deselecting the current channel is a legitimate
+     * thing to want (this post belongs on Facebook, not Instagram), so it is
+     * allowed, and the caller is told where to move the selection. */
+    var droppedSelf = false;
+    current.forEach(function (r) {
+      if (accountIds.indexOf(r.accountId) >= 0) return;
+      if (r.item.id === id) droppedSelf = true;
+      writeAcc(r.accountId, r.kind,
+        readAcc(r.accountId, r.kind).filter(function (x) { return x.id !== r.item.id; }));
+    });
+
+    emit('targets');
+
+    /* Where the inspector should go next. When the viewed copy is gone, the
+       surviving sibling is the sensible target — and it lives under a
+       different account, so the workspace has to switch to it or the user is
+       left looking at a panel for something not on screen. */
+    if (!droppedSelf) return { removedSelf: false };
+    var remaining = groupSiblings(gid)[0];
+    return {
+      removedSelf: true,
+      nextId: remaining ? remaining.item.id : null,
+      nextAccountId: remaining ? remaining.accountId : null,
+    };
+  }
+
   function patchItem(id, patch) {
     var target = itemById(id);
     if (!target) return null;
@@ -390,6 +529,25 @@ window.App = (function () {
     writeKind(kind, readKind(kind).map(function (it) {
       return it.id === id ? Object.assign({}, it, patch) : it;
     }));
+
+    /* Content edits reach every channel this post goes out on; approval state
+       does not. Doing it here rather than at the call sites means every
+       existing edit path gets it without knowing groups exist. */
+    if (target.groupId) {
+      var shared = {};
+      SHARED_FIELDS.forEach(function (k) {
+        if (Object.prototype.hasOwnProperty.call(patch, k)) shared[k] = patch[k];
+      });
+      if (Object.keys(shared).length) {
+        groupSiblings(target.groupId).forEach(function (r) {
+          if (r.item.id === id) return;
+          writeAcc(r.accountId, r.kind, readAcc(r.accountId, r.kind).map(function (x) {
+            return x.id === r.item.id ? Object.assign({}, x, shared) : x;
+          }));
+        });
+      }
+    }
+
     emit('item');
     return itemById(id);
   }
@@ -398,6 +556,9 @@ window.App = (function () {
     var kind = (patch && patch._kind) || state.kind;
     var item = Object.assign({
       id: newId('i_'),
+      /* Every post belongs to a group, even when it starts on one channel —
+         so adding a second channel later is a toggle, not a migration. */
+      groupId: newId('g_'),
       type: 'photo',
       url: '', externalUrl: '',
       date: defaultDate(),
@@ -669,6 +830,8 @@ window.App = (function () {
     items: items, itemById: itemById, patchItem: patchItem,
     createItem: createItem, removeItem: removeItem, moveItem: moveItem,
     readKind: readKind, writeKind: writeKind,
+    groupSiblings: groupSiblings, targetsOf: targetsOf, setTargets: setTargets,
+    SHARED_FIELDS: SHARED_FIELDS,
     progress: progress, clientProgress: clientProgress, studioStats: studioStats,
     clientMonthDays: clientMonthDays,
     pillars: pillars, formats: formats, statusOf: statusOf,

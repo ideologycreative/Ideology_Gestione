@@ -85,6 +85,16 @@ window.Views = (function () {
     ]);
   }
 
+  /* Marks a post that goes out on more than one channel, so two copies in
+     two grids do not read as an accidental duplicate. */
+  function linkTag(item) {
+    if (!item.groupId) return null;
+    var n = A.groupSiblings(item.groupId).length;
+    if (n < 2) return null;
+    return h('span', { cls: 'card-links', attrs: { title: 'Su ' + n + ' canali' } },
+      [icon('link', 9), String(n)]);
+  }
+
   function selectItem(id) { A.set({ selectedId: id }, 'select'); }
 
   /* Cards are draggable everywhere; what a drop MEANS is the view's business.
@@ -144,6 +154,7 @@ window.Views = (function () {
           h('div', { cls: 'card-body' }, [
             h('div', { cls: 'card-meta' }, [
               h('span', { cls: 'card-date', text: A.fmtDay(item.date) }),
+              linkTag(item),
               pillarTag(item),
             ]),
             item.copy ? h('p', { cls: 'card-copy', text: item.copy }) : null,

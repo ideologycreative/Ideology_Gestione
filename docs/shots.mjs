@@ -115,5 +115,36 @@ await page.setViewport({ width: 430, height: 900, deviceScaleFactor: 2 });
 await page.goto(BASE + '/', { waitUntil: 'networkidle2' });
 await shot('20-mobile-home');
 
+// Back to desktop for the two new features.
+await page.setViewport({ width: 1440, height: 900, deviceScaleFactor: 1 });
+
+// Client editor for Nodo Studio -- theme picker with Chiaro selected.
+await page.goto(BASE + '/', { waitUntil: 'networkidle2' });
+await page.evaluate(() => { location.hash = '#/clients/c_nodo'; });
+await shot('21-client-theme-picker');
+
+// Nodo Studio's own portal -- the light theme in the wild.
+await page.goto(BASE + '/client?t=nd5a12c88e47', { waitUntil: 'networkidle2' });
+await shot('22-portal-light-theme');
+
+// Multi-channel picker in the inspector -- both boxes tickable/untickable now.
+await page.goto(BASE + '/', { waitUntil: 'networkidle2' });
+await page.evaluate(() => {
+  const c = App.clients().find(x => (x.accounts || []).length > 1);
+  location.hash = '#/content/' + c.id;
+});
+await new Promise(r => setTimeout(r, 500));
+await page.evaluate(() => App.set({ view: 'board' }));
+await new Promise(r => setTimeout(r, 400));
+await page.evaluate(async () => {
+  const card = document.querySelector('.card');
+  if (!card) return;
+  card.click();
+  await new Promise(r => setTimeout(r, 300));
+  const off = [...document.querySelectorAll('.target')].find(b => b.getAttribute('aria-checked') === 'false');
+  if (off) { off.click(); await new Promise(r => setTimeout(r, 400)); }
+});
+await shot('23-inspector-two-channels');
+
 await browser.close().catch(() => {});
 console.log('\nsaved to docs/shots/');

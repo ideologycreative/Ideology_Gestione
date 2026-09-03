@@ -60,8 +60,13 @@
 
 :root {
   --mono: 'Ideology Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  --rule: #232323;
-  --rule-2: #383838;
+  /* Aliased, not hard-coded: ideology-tokens.css already defines --border /
+     --border-strong per theme (dark greys on black, light greys on white).
+     Routing through those means every rule drawn with --rule flips for free
+     when the portal's data-theme attribute changes -- no second light block
+     to keep in sync in here. */
+  --rule: var(--border);
+  --rule-2: var(--border-strong);
   --track: .14em;
 
   /* Overwritten at boot from the client's own colour. The defaults are only
@@ -615,10 +620,11 @@ select.cv-sel:focus-visible { outline: 2px solid var(--accent); outline-offset: 
   }
 
   var TOKEN = {
-    approvato: '[OK] Approvato',
-    revisione: '[!!] Modifica richiesta',
-    approvare: '[??] In attesa',
-    bozza:     '[··] Bozza',
+    approvato:  '[OK] Approvato',
+    pubblicato: '[>>] Pubblicato',
+    revisione:  '[!!] Modifica richiesta',
+    approvare:  '[??] In attesa',
+    bozza:      '[··] Bozza',
   };
 
   var client = null, accounts = [], accIdx = 0, month = '', view = 'preview';
@@ -649,6 +655,15 @@ select.cv-sel:focus-visible { outline: 2px solid var(--accent); outline-offset: 
     r.setProperty('--accent-on', onColor(hex));
     r.setProperty('--accent-dim', rgba(hex, .14));
     r.setProperty('--accent-glow', '0 0 14px ' + rgba(hex, .34));
+  }
+
+  /* Per-client portal background, set from the client's own record -- see
+     the studio's Clienti > Sfondo portale control. Anything other than the
+     literal string 'light' resolves to dark, so a client with no theme set
+     yet (every one seeded before this feature existed) keeps the ground
+     they already had rather than silently flipping to white. */
+  function applyTheme(theme) {
+    document.documentElement.setAttribute('data-theme', theme === 'light' ? 'light' : 'dark');
   }
 
   function el(tag, cls, text) {
@@ -698,6 +713,7 @@ select.cv-sel:focus-visible { outline: 2px solid var(--accent); outline-offset: 
     }
 
     applyAccent(client.color || '#F2C700');
+    applyTheme(client.theme);
     accounts = client.accounts || [];
     var now = new Date();
     month = MONTHS[now.getMonth()] + ' ' + now.getFullYear();
@@ -948,8 +964,8 @@ select.cv-sel:focus-visible { outline: 2px solid var(--accent); outline-offset: 
     }
     card.appendChild(meta);
 
-    if (stato === 'approvato') {
-      card.appendChild(el('div', 'cv-done', TOKEN.approvato));
+    if (stato === 'approvato' || stato === 'pubblicato') {
+      card.appendChild(el('div', 'cv-done', TOKEN[stato]));
     } else if (stato === 'revisione') {
       card.appendChild(el('div', 'cv-pending', TOKEN.revisione));
     } else {
@@ -1243,7 +1259,11 @@ select.cv-sel:focus-visible { outline: 2px solid var(--accent); outline-offset: 
 
   S.subscribe(function (e) {
     if (e.detail && e.detail.external && (e.collection === 'feeds' || e.collection === 'clients')) {
-      if (client) { client = S.getClient(client.id) || client; applyAccent(client.color); }
+      if (client) {
+        client = S.getClient(client.id) || client;
+        applyAccent(client.color);
+        applyTheme(client.theme);
+      }
       render();
     }
   });

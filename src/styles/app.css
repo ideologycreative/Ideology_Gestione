@@ -420,6 +420,35 @@ kbd {
 .color-native::-webkit-color-swatch-wrapper { padding: 2px; }
 .color-native::-webkit-color-swatch { border: 0; }
 
+/* Portal background choice. Two tiles that actually show black-vs-white
+   with the client's own colour dropped in, rather than a labelled switch --
+   the decision is visual, so the control should look like its own result. */
+.theme-pick { display: flex; gap: 8px; }
+.theme-tile {
+  appearance: none;
+  display: flex; flex-direction: column; align-items: center; gap: 7px;
+  padding: 9px;
+  border: 1px solid var(--rule);
+  background: none;
+  cursor: pointer;
+  transition: border-color var(--t-fast), background var(--t-fast);
+}
+.theme-tile:hover { border-color: var(--rule-2); background: var(--surface-lt); }
+.theme-tile.is-on { border-color: var(--brand); background: var(--surface-lt); }
+.theme-swatch {
+  width: 64px; height: 40px;
+  border: 1px solid var(--rule);
+  display: flex; align-items: flex-start; justify-content: flex-end;
+  padding: 5px;
+}
+.theme-swatch i { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.theme-lbl {
+  font-family: var(--mono); font-size: 9px;
+  letter-spacing: var(--track); text-transform: uppercase;
+  color: var(--text-3);
+}
+.theme-tile.is-on .theme-lbl { color: var(--brand); }
+
 .logo-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .logo-prev {
   width: 46px; height: 46px; flex-shrink: 0;
@@ -570,7 +599,7 @@ kbd {
 
 .board {
   display: grid;
-  grid-template-columns: repeat(4, minmax(200px, 1fr));
+  grid-template-columns: repeat(5, minmax(186px, 1fr));
   height: 100%;
   align-items: start;
 }
@@ -599,6 +628,8 @@ body.is-dragging .col { background: rgba(242,199,0,.02); }
 .col[data-s="approvato"] .col-name { color: var(--brand); text-shadow: var(--glow); }
 .col[data-s="revisione"] .col-token,
 .col[data-s="revisione"] .col-name { color: var(--warning-text); }
+.col[data-s="pubblicato"] .col-token,
+.col[data-s="pubblicato"] .col-name { color: var(--info-text); }
 
 .col-body { padding: 10px; display: flex; flex-direction: column; gap: 9px; overflow-y: auto; flex: 1; }
 .col-empty { color: var(--rule-2); text-align: center; padding: 20px 0; font-family: var(--mono); }
@@ -676,6 +707,7 @@ body.is-dragging .col { background: rgba(242,199,0,.02); }
 .sdot[data-s="approvato"] { background: var(--brand); box-shadow: var(--glow); }
 .sdot[data-s="revisione"] { background: var(--danger-text); }
 .sdot[data-s="approvare"] { background: var(--warning-text); }
+.sdot[data-s="pubblicato"] { background: var(--info-text); }
 
 /* ═══ CALENDAR ════════════════════════════════════════════════════════════
    Posts AND stories on one surface — the reason the type filter does not
@@ -718,6 +750,7 @@ body.is-dragging .col { background: rgba(242,199,0,.02); }
 .cal-item[data-s="approvato"] { border-left-color: var(--brand); }
 .cal-item[data-s="revisione"] { border-left-color: var(--danger-text); }
 .cal-item[data-s="approvare"] { border-left-color: var(--warning-text); }
+.cal-item[data-s="pubblicato"] { border-left-color: var(--info-text); }
 .cal-item-k {
   font-family: var(--mono); font-size: 8px; font-weight: 700;
   color: var(--text-3); flex-shrink: 0;
@@ -924,6 +957,86 @@ select.input { font-family: var(--mono); font-size: 10px; letter-spacing: .06em;
 .seg--status .seg-b[data-s="revisione"][aria-pressed="true"] { color: var(--danger-text); border-color: var(--danger-border); text-shadow: none; }
 .seg--status .seg-b[data-s="approvare"][aria-pressed="true"] { color: var(--warning-text); border-color: var(--warning-border); text-shadow: none; }
 
+/* ═══ STATUS LIST ═════════════════════════════════════════════════════════
+   Five named states, stacked. Was a row of bare tokens: fast once learned,
+   opaque before that — and this is the panel where you SET the state, which
+   is precisely when the word earns its space. */
+
+.statelist { display: flex; flex-direction: column; gap: 2px; }
+.state {
+  appearance: none;
+  display: flex; align-items: center; gap: 9px;
+  padding: 8px 10px;
+  border: 1px solid transparent;
+  background: var(--surface-lt);
+  color: var(--text-3);
+  cursor: pointer; text-align: left;
+  transition: background var(--t-fast), color var(--t-fast), border-color var(--t-fast);
+}
+.state:hover { background: var(--surface-hi); color: var(--text-2); }
+.state-tok {
+  font-family: var(--mono); font-size: 9px; font-weight: 700;
+  letter-spacing: .04em; flex-shrink: 0;
+  color: var(--rule-2);
+}
+.state-lbl {
+  font-family: var(--mono); font-size: 10px;
+  letter-spacing: var(--track); text-transform: uppercase;
+}
+
+/* Selected state is filled in the colour that state means, so the panel says
+   the same thing as the board and the calendar. */
+.state.is-on { color: var(--text); border-color: currentColor; }
+.state.is-on .state-tok { color: inherit; }
+.state.is-on[data-s="bozza"]      { color: var(--text-2);      background: var(--surface-hi); }
+.state.is-on[data-s="approvare"]  { color: var(--warning-text); background: var(--warning-bg); }
+.state.is-on[data-s="revisione"]  { color: var(--danger-text);  background: var(--danger-bg); }
+.state.is-on[data-s="approvato"]  { color: var(--brand);        background: var(--brand-tint); }
+.state.is-on[data-s="pubblicato"] { color: var(--info-text);    background: var(--info-bg); }
+
+/* ═══ CHANNELS ════════════════════════════════════════════════════════════
+   One piece of content, several places it goes out — so it is built once. */
+
+.targets { display: flex; flex-direction: column; gap: 2px; }
+.target {
+  appearance: none;
+  display: flex; align-items: center; gap: 9px;
+  padding: 8px 10px;
+  border: 1px solid var(--rule);
+  background: none;
+  color: var(--text-3);
+  cursor: pointer; text-align: left;
+  transition: border-color var(--t-fast), color var(--t-fast), background var(--t-fast);
+}
+.target:hover:not(:disabled) { border-color: var(--rule-2); color: var(--text-2); }
+.target:disabled { cursor: default; opacity: .75; }
+.target.is-on { border-color: var(--brand); color: var(--brand); background: var(--brand-tint); }
+
+.target-box {
+  width: 15px; height: 15px; flex-shrink: 0;
+  border: 1px solid var(--rule-2);
+  display: inline-flex; align-items: center; justify-content: center;
+}
+.target.is-on .target-box { border-color: var(--brand); background: var(--brand); color: var(--brand-on); }
+
+.target-name {
+  font-family: var(--mono); font-size: 10px;
+  letter-spacing: var(--track); text-transform: uppercase;
+}
+.target-ratio {
+  margin-left: auto;
+  font-family: var(--mono); font-size: 9px;
+  letter-spacing: .04em; color: var(--text-3);
+}
+
+/* A card that goes out on more than one channel is marked, so the grid does
+   not look like accidental duplication. */
+.card-links, .gcell-links {
+  display: inline-flex; align-items: center; gap: 3px;
+  font-family: var(--mono); font-size: 8px;
+  letter-spacing: .06em; color: var(--text-3);
+}
+
 .chips { display: flex; flex-wrap: wrap; gap: 5px; }
 .chip {
   appearance: none; border: 1px solid var(--rule); background: none;
@@ -978,6 +1091,7 @@ select.input { font-family: var(--mono); font-size: 10px; letter-spacing: .06em;
 .st-seg[data-s="approvato"] b { color: var(--brand); }
 .st-seg[data-s="revisione"] b { color: var(--danger-text); }
 .st-seg[data-s="approvare"] b { color: var(--warning-text); }
+.st-seg[data-s="pubblicato"] b { color: var(--info-text); }
 .st-bar { letter-spacing: 0; color: var(--rule-2); }
 .st-bar b { color: var(--brand); font-weight: 400; text-shadow: var(--glow); }
 .st-ratio { color: var(--text-2); }
@@ -1069,7 +1183,7 @@ select.input { font-family: var(--mono); font-size: 10px; letter-spacing: .06em;
     height: 78vh; border-left: 0; border-top: 2px solid var(--brand);
     background: var(--bg);
   }
-  .board { grid-template-columns: repeat(4, 240px); overflow-x: auto; }
+  .board { grid-template-columns: repeat(5, 240px); overflow-x: auto; }
   .btn, .seg-b, .iconbtn { min-height: 40px; }   /* finger, not pointer */
 }
 

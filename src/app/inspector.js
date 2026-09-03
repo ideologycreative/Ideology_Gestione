@@ -108,29 +108,94 @@ window.Inspector = (function () {
       }
     })();
 
-    /* ── Status: the pipeline, as a segmented control ───────────────────────
-       Repeated here rather than left to drag-and-drop alone, because a
-       gesture-only interaction is unusable by keyboard and unreachable on
-       touch. Same reason the board is not the only way to move work. */
+    /* ── Status ─────────────────────────────────────────────────────────
+       A named list, not a row of symbols. The tokens were fast to scan once
+       learned and meaningless before that — and this panel is where you SET
+       the state, which is exactly the moment the word matters. Five items in
+       a row would also have squeezed every label to three letters in a 340px
+       panel, so it runs vertically.
+
+       Duplicated from the board's drag on purpose: a gesture-only interaction
+       is unusable by keyboard and unreachable on touch. */
+    var cur = item.apprStato || 'bozza';
     body.appendChild(field('Stato',
-      h('div', { cls: 'seg seg--status' },
+      h('div', { cls: 'statelist', attrs: { role: 'radiogroup', 'aria-label': 'Stato' } },
         A.STATUSES.map(function (st) {
+          var on = cur === st.id;
           return h('button', {
-            cls: 'seg-b',
-            attrs: {
-              'aria-pressed': String((item.apprStato || 'bozza') === st.id),
-              'data-s': st.id,
-              title: st.hint,
-            },
+            cls: 'state' + (on ? ' is-on' : ''),
+            attrs: { role: 'radio', 'aria-checked': String(on),
+                     'data-s': st.id, title: st.hint },
             on: { click: function () {
+              if (on) return;
               A.patchItem(item.id, { apprStato: st.id });
               window.Shell.toast('→ ' + st.label);
             } },
-          }, [st.token]);
+          }, [
+            h('span', { cls: 'state-tok', text: st.token }),
+            h('span', { cls: 'state-lbl', text: st.label }),
+          ]);
         })
       ),
-      A.statusOf(item.apprStato).hint
+      A.statusOf(cur).hint
     ));
+
+    /* ── Channels ───────────────────────────────────────────────────────
+       One piece of content, several places it goes out. Ticking Facebook here
+       creates that channel's copy of this post — same image, same caption,
+       same date — instead of making you build it twice.
+
+       Each channel keeps its OWN approval state and its own position in that
+       profile's grid, because a client can sign off on Instagram and ask for
+       a change on Facebook, and the two feeds are ordered differently. Edit
+       the content anywhere and every channel follows. */
+    var accs = A.accounts();
+    if (accs.length > 1) {
+      var targets = A.targetsOf(item);
+      body.appendChild(field('Pubblica su',
+        h('div', { cls: 'targets' }, accs.map(function (a) {
+          var on = targets.indexOf(a.id) >= 0;
+          var pf = A.platform(a.platform);
+          return h('button', {
+            cls: 'target' + (on ? ' is-on' : ''),
+            attrs: {
+              role: 'switch', 'aria-checked': String(on),
+              /* Only the LAST remaining channel is locked — a post has to go
+                 out somewhere. Every other tick is live, including the channel
+                 you are currently viewing. */
+              disabled: (on && targets.length === 1) ? 'disabled' : null,
+              title: (on && targets.length === 1)
+                ? 'Un contenuto deve restare su almeno un canale'
+                : a.platform + ' · ' + pf.feed.replace('/', ':'),
+            },
+            on: { click: function () {
+              var next = on
+                ? targets.filter(function (x) { return x !== a.id; })
+                : targets.concat([a.id]);
+              if (!next.length) return;
+              var res = A.setTargets(item.id, next) || {};
+              /* Dropping the channel you were viewing deletes that copy, so
+                 follow the group to its surviving sibling — switching account
+                 too, or the panel would describe something off screen. */
+              if (res.removedSelf) {
+                A.set({
+                  accountId: res.nextAccountId || A.state.accountId,
+                  selectedId: res.nextId || null,
+                }, 'targets');
+              }
+              window.Shell.toast(on ? a.platform + ' rimosso' : 'Aggiunto a ' + a.platform);
+            } },
+          }, [
+            h('span', { cls: 'target-box' }, on ? [icon('check', 11)] : []),
+            h('span', { cls: 'target-name', text: a.platform }),
+            h('span', { cls: 'target-ratio', text: pf.feed.replace('/', ':') }),
+          ]);
+        })),
+        targets.length > 1
+          ? 'Immagine, caption e data restano uguali su tutti i canali. Approvazione separata.'
+          : 'Seleziona un altro canale per pubblicare lo stesso contenuto anche lì.'
+      ));
+    }
 
     /* ── Sponsored ────────────────────────────────────────────────────────
        Paid placement. A switch rather than a chip because it is binary and

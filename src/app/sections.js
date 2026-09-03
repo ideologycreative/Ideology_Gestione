@@ -228,6 +228,34 @@ window.Sections = (function () {
       }).concat([picker])
     )));
 
+    /* Portal background. Two tiles rather than a toggle, because the choice
+       is genuinely visual -- black ground vs white ground -- and a tile that
+       actually LOOKS like the result is faster to read than a labelled
+       switch. Live-swatches the client's own colour into each preview so the
+       decision is made with the real combination, not an abstract yellow. */
+    var curTheme = c.theme === 'light' ? 'light' : 'dark';
+    idCard.appendChild(fld('Sfondo portale',
+      h('div', { cls: 'theme-pick' }, [
+        { id: 'dark',  label: 'Scuro',  bg: '#101010', fg: '#f2f2f2' },
+        { id: 'light', label: 'Chiaro', bg: '#ffffff', fg: '#101010' },
+      ].map(function (t) {
+        var on = curTheme === t.id;
+        return h('button', {
+          cls: 'theme-tile' + (on ? ' is-on' : ''),
+          attrs: { 'aria-pressed': String(on) },
+          on: { click: function () { A.updateClient(c.id, { theme: t.id }); } },
+        }, [
+          h('span', {
+            cls: 'theme-swatch',
+            style: 'background:' + t.bg + ';color:' + t.fg,
+          }, [
+            h('i', { style: 'background:' + (c.color || '#F2C700') }),
+          ]),
+          h('span', { cls: 'theme-lbl', text: t.label }),
+        ]);
+      }))
+    , 'Come vedrà il piano il cliente quando apre il link. Lo sfondo scuro è quello dello studio; il chiaro è pensato per un cliente il cui lavoro rende meglio su bianco.'));
+
     /* Logo — stored as a data URL, same trade as post images. */
     var logoFile = h('input', {
       attrs: { type: 'file', accept: 'image/*', hidden: 'hidden' },
