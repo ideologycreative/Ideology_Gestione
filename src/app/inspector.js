@@ -26,6 +26,16 @@ window.Inspector = (function () {
     debounceTimer = setTimeout(fn, 260);
   }
 
+  /* Every commit in this panel — a toggle, a chip, a channel tick — goes
+     through A.patchItem/setTargets/setStoryLink, which emits, which triggers
+     a full render() of this panel (there is no partial update in this app).
+     A fresh .insp-body element starts scrolled to top, so without this the
+     panel visibly jumped to the top of a 340px column on every single click,
+     which reads as both "it jumped" and "it's laggy". Restored only when
+     re-rendering the SAME post — switching to a different one should reset
+     to top, that scroll position means nothing there. */
+  var lastItemId = null, lastScrollTop = 0;
+
   function field(label, control, hint) {
     return h('div', { cls: 'f' }, [
       h('label', { cls: 'f-label', text: label }),
@@ -35,14 +45,20 @@ window.Inspector = (function () {
   }
 
   function render(mount) {
+    var prevBody = mount.querySelector('.insp-body');
+    if (prevBody) lastScrollTop = prevBody.scrollTop;
+
     A.clear(mount);
     var item = A.state.selectedId ? A.itemById(A.state.selectedId) : null;
 
     if (!item) {
       mount.classList.remove('is-open');
+      lastItemId = null;
       return;
     }
     mount.classList.add('is-open');
+    var sameItem = lastItemId === item.id;
+    lastItemId = item.id;
 
     /* ── Header ─────────────────────────────────────────────────────────── */
     mount.appendChild(h('div', { cls: 'insp-hd' }, [
@@ -611,6 +627,7 @@ window.Inspector = (function () {
     }
 
     mount.appendChild(body);
+    if (sameItem) body.scrollTop = lastScrollTop;
 
     /* ── Footer ─────────────────────────────────────────────────────────── */
     mount.appendChild(h('div', { cls: 'insp-ft' }, [
