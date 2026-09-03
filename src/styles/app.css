@@ -1,0 +1,1081 @@
+/*
+ * IDEOLOGY STUDIO — application styles
+ * ═══════════════════════════════════════════════════════════════════════════
+ *
+ * Written for this tool's own structure. It replaces a 215KB stylesheet that
+ * came with the extracted app and described a layout this build no longer
+ * has — a client table, five tab pages, two stacked toolbars.
+ *
+ * The visual language is the TERMINAL direction, carried over intact:
+ *   · mono for what the machine says, humanist for what a person wrote
+ *   · brackets and rules, never boxes with shadows
+ *   · right angles
+ *   · yellow as phosphor — only on what is live
+ *
+ * The LAYOUT is new:
+ *
+ *      ┌────────┬──────────────────────────────┬──────────┐
+ *      │  rail  │  header                      │          │
+ *      │        ├──────────────────────────────┤ inspector│
+ *      │ client │  view (board / grid / cal)   │          │
+ *      │  list  │                              │          │
+ *      ├────────┴──────────────────────────────┴──────────┤
+ *      │  status                                          │
+ *      └──────────────────────────────────────────────────┘
+ *
+ * A three-column app frame: navigation always present on the left, editing
+ * always available on the right, and the work in the middle never replaced by
+ * a modal or a different page.
+ */
+
+@font-face {
+  font-family: 'Ideology Mono';
+  src: url('/assets/fonts/JetBrainsMono-400.woff2') format('woff2');
+  font-weight: 400; font-display: swap;
+}
+@font-face {
+  font-family: 'Ideology Mono';
+  src: url('/assets/fonts/JetBrainsMono-700.woff2') format('woff2');
+  font-weight: 700; font-display: swap;
+}
+
+:root {
+  --mono: 'Ideology Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --rule: #232323;
+  --rule-2: #383838;
+  --glow: 0 0 12px rgba(242, 199, 0, .38);
+  --track: .14em;
+
+  --rail-w: 208px;
+  --insp-w: 340px;
+  --hd-h: 56px;
+  --st-h: 30px;
+
+  /* JetBrains Mono's dotted zero fills in at 9-10px and turns "19.09" into
+     "19.89". A misread date is not an acceptable price for a stylistic zero,
+     and unlike Gustavo's slashed zero this one is an addressable feature. */
+  font-feature-settings: "zero" 0;
+}
+
+* { box-sizing: border-box; }
+
+html, body { height: 100%; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "zero" 0;
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden;              /* the frame scrolls its panes, not the page */
+}
+
+/* Scanline wash + vignette: reads as a display surface. 2.5% and behind no
+   text, so it never costs legibility. */
+body::after {
+  content: "";
+  position: fixed; inset: 0;
+  z-index: 9998;
+  pointer-events: none;
+  background:
+    repeating-linear-gradient(to bottom,
+      rgba(255,255,255,.022) 0px, rgba(255,255,255,.022) 1px,
+      transparent 1px, transparent 3px),
+    radial-gradient(ellipse at 50% 40%, transparent 58%, rgba(0,0,0,.32) 100%);
+}
+
+::selection { background: var(--brand); color: var(--brand-on); }
+:focus-visible { outline: 2px solid var(--brand); outline-offset: 1px; }
+
+*::-webkit-scrollbar { width: 9px; height: 9px; }
+*::-webkit-scrollbar-track { background: transparent; }
+*::-webkit-scrollbar-thumb { background: var(--rule-2); border: 2px solid var(--bg); }
+*::-webkit-scrollbar-thumb:hover { background: var(--text-3); }
+
+/* ═══ FRAME ═══════════════════════════════════════════════════════════════ */
+
+.app {
+  display: grid;
+  grid-template-columns: var(--rail-w) 1fr 0;
+  grid-template-rows: var(--hd-h) 1fr var(--st-h);
+  grid-template-areas:
+    "rail header header"
+    "rail view   inspector"
+    "status status status";
+  height: 100vh;
+  transition: grid-template-columns var(--t-base);
+}
+body.has-inspector .app { grid-template-columns: var(--rail-w) 1fr var(--insp-w); }
+
+#rail      { grid-area: rail;      border-right: 1px solid var(--rule); display: flex; flex-direction: column; overflow: hidden; }
+#header    { grid-area: header;    border-bottom: 1px solid var(--rule); display: flex; align-items: center; gap: 12px; padding: 0 14px; overflow-x: auto; }
+#view      { grid-area: view;      overflow: auto; }
+#inspector { grid-area: inspector; border-left: 1px solid var(--rule); overflow: hidden; display: none; flex-direction: column; }
+#inspector.is-open { display: flex; }
+#status    { grid-area: status;    border-top: 1px solid var(--rule); display: flex; align-items: center; gap: 10px; padding: 0 12px; }
+/* Home and Settings have no "month on screen", so the contextual bars go
+   quiet rather than showing controls that would act on nothing. */
+#header.is-bare { border-bottom: 0; }
+#status.is-bare { justify-content: flex-end; }
+
+/* ═══ MACHINE TEXT ════════════════════════════════════════════════════════ */
+
+.rail-lbl, .col-hd, .btn, .seg-b, .chip, .stepper-v, .hd-handle,
+.gcell-bar, .cal-hd, .cal-day, .st-seg, .st-ratio, .st-save, .st-bar,
+.f-label, .insp-kind, .insp-id, .pal-group, .thumb-tag, .rail-count,
+.rail-link, .card-date, .ptag, .col-token, .col-n, .insp-client-hd, kbd {
+  font-family: var(--mono);
+  letter-spacing: var(--track);
+  text-transform: uppercase;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ═══ MENU ═══════════════════════════════════════════════════════════════
+   Permanent section navigation. Icon AND label, never icon alone — an
+   icon-only rail is unreadable until learned, and this app has five
+   destinations, not twenty. */
+
+.rail-hd {
+  display: flex; align-items: center; gap: 9px;
+  height: var(--hd-h);
+  padding: 0 14px;
+  border: 0; border-bottom: 1px solid var(--rule);
+  background: none; cursor: pointer;
+  flex-shrink: 0; width: 100%;
+}
+.rail-hd:hover .wordmark { color: var(--brand); }
+.mark {
+  width: 24px; height: 24px; flex-shrink: 0;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: var(--brand); color: var(--brand-on);
+  font-family: var(--font-mark); font-size: 12px; letter-spacing: -.06em;
+  box-shadow: var(--glow);
+}
+.wordmark {
+  font-family: var(--mono);
+  font-size: 11px; font-weight: 700;
+  letter-spacing: .2em; text-transform: uppercase;
+  color: var(--text);
+  transition: color var(--t-fast);
+}
+
+.menu { display: flex; flex-direction: column; padding: 10px 0; }
+.menu-item {
+  appearance: none; border: 0; background: none;
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 14px;
+  font-family: var(--mono); font-size: 10px;
+  letter-spacing: var(--track); text-transform: uppercase;
+  color: var(--text-3);
+  text-align: left; cursor: pointer;
+  border-left: 2px solid transparent;
+  transition: color var(--t-fast), background var(--t-fast), border-color var(--t-fast);
+}
+.menu-item:hover { color: var(--text-2); background: var(--surface-lt); }
+.menu-item.is-on {
+  color: var(--brand);
+  border-left-color: var(--brand);
+  background: var(--surface-lt);
+  text-shadow: var(--glow);
+}
+
+.rail-ft { border-top: 1px solid var(--rule); padding: 8px; display: flex; flex-direction: column; gap: 2px; }
+.rail-link {
+  appearance: none; border: 0; background: none;
+  display: flex; align-items: center; gap: 7px;
+  padding: 7px 8px;
+  font-family: var(--mono); font-size: 9px;
+  letter-spacing: var(--track); text-transform: uppercase;
+  color: var(--text-3); cursor: pointer; text-decoration: none;
+  transition: color var(--t-fast), background var(--t-fast);
+}
+.rail-link:hover { color: var(--brand); background: var(--surface-lt); }
+kbd {
+  margin-left: auto;
+  border: 1px solid var(--rule); padding: 1px 4px;
+  font-family: var(--mono); font-size: 8px; color: var(--text-3);
+}
+
+/* ═══ PAGES ═══════════════════════════════════════════════════════════════ */
+
+.page { padding: 28px 32px 48px; max-width: 1180px; }
+.page-hd { display: flex; align-items: flex-start; gap: 16px; margin-bottom: 26px; }
+.page-title {
+  font-family: var(--font-display);
+  font-size: 26px; font-weight: 600; letter-spacing: -.025em;
+  margin: 0;
+}
+.page-sub {
+  margin: 6px 0 0;
+  font-family: var(--mono); font-size: 9px;
+  letter-spacing: var(--track); text-transform: uppercase;
+  color: var(--text-3);
+}
+.note-line {
+  margin: 22px 0 0;
+  font-family: var(--mono); font-size: 9px;
+  letter-spacing: var(--track); text-transform: uppercase;
+  color: var(--text-3);
+}
+
+.back {
+  appearance: none; border: 0; background: none;
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 0 0 14px;
+  font-family: var(--mono); font-size: 9px;
+  letter-spacing: var(--track); text-transform: uppercase;
+  color: var(--text-3); cursor: pointer;
+}
+.back:hover { color: var(--brand); }
+.back--inline {
+  padding: 0; width: 26px; height: 26px; justify-content: center;
+  border: 1px solid var(--rule); flex-shrink: 0;
+}
+.back--inline:hover { border-color: var(--brand); }
+
+/* ═══ HOME ════════════════════════════════════════════════════════════════
+   Intentionally near-empty: the wordmark, the month, and only the numbers
+   that change what you do next. Alerts appear only when something is
+   actually blocked — a permanent "0 waiting" row is noise. */
+
+.page--home {
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  min-height: 100%; max-width: none; padding: 40px 32px;
+}
+
+.home-hero { text-align: center; }
+.home-mark {
+  width: 54px; height: 54px; margin: 0 auto 18px;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--brand); color: var(--brand-on);
+  font-family: var(--font-mark); font-size: 26px; letter-spacing: -.06em;
+  box-shadow: 0 0 34px rgba(242, 199, 0, .34);
+}
+.home-word {
+  font-family: var(--font-display);
+  font-size: 40px; font-weight: 600; letter-spacing: -.03em;
+  margin: 0;
+}
+.home-sub {
+  margin: 8px 0 0;
+  font-family: var(--mono); font-size: 9px;
+  letter-spacing: .2em; text-transform: uppercase;
+  color: var(--text-3);
+}
+.home-month {
+  margin: 34px 0 16px;
+  font-family: var(--mono); font-size: 10px;
+  letter-spacing: .24em; text-transform: uppercase;
+  color: var(--brand); text-shadow: var(--glow);
+}
+
+.home-stats {
+  display: grid; grid-template-columns: repeat(5, 122px);
+  gap: 1px; background: var(--rule);
+  border: 1px solid var(--rule);
+}
+.stat {
+  appearance: none; border: 0; background: var(--bg);
+  display: flex; flex-direction: column; align-items: center; gap: 8px;
+  padding: 20px 12px; cursor: pointer;
+  transition: background var(--t-fast);
+}
+.stat:hover { background: var(--surface-lt); }
+.stat-n {
+  font-family: var(--mono); font-size: 30px; font-weight: 700;
+  line-height: 1; color: var(--text);
+}
+.stat--brand .stat-n { color: var(--brand); text-shadow: var(--glow); }
+.stat-l {
+  font-family: var(--mono); font-size: 8px;
+  letter-spacing: var(--track); text-transform: uppercase;
+  color: var(--text-3);
+}
+
+.home-alerts { display: flex; flex-direction: column; gap: 8px; margin-top: 26px; }
+.alert {
+  appearance: none; background: none;
+  border: 1px solid var(--rule); border-left: 2px solid var(--brand);
+  display: flex; align-items: center; gap: 10px;
+  padding: 11px 15px;
+  font-family: var(--mono); font-size: 10px;
+  letter-spacing: .06em; text-transform: uppercase;
+  color: var(--text-2); cursor: pointer;
+  transition: border-color var(--t-fast), background var(--t-fast);
+}
+.alert:hover { background: var(--surface-lt); border-color: var(--brand); }
+.alert b { color: var(--brand); font-weight: 400; }
+.alert--warn { border-left-color: var(--warning-text); }
+.alert--warn b { color: var(--warning-text); }
+
+/* ═══ CLIENT TILES ════════════════════════════════════════════════════════
+   The picker shared by Clienti, Contenuti and Anteprima. Carries each
+   client's own colour and logo — across a roster you recognise the mark
+   faster than you read the name. */
+
+.tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(232px, 1fr));
+  gap: 1px; background: var(--rule);
+  border: 1px solid var(--rule);
+}
+.tile {
+  appearance: none; border: 0; background: var(--bg);
+  position: relative;
+  display: flex; flex-direction: column; gap: 16px;
+  padding: 16px 15px 14px;
+  text-align: left; cursor: pointer;
+  transition: background var(--t-fast);
+}
+.tile:hover { background: var(--surface-lt); }
+.tile-bar { position: absolute; inset: 0 auto 0 0; width: 2px; }
+
+.tile-hd { display: flex; align-items: center; gap: 11px; min-width: 0; }
+.tile-logo {
+  width: 34px; height: 34px; flex-shrink: 0;
+  object-fit: contain; background: var(--surface-hi);
+}
+.tile-logo--txt {
+  display: inline-flex; align-items: center; justify-content: center;
+  font-family: var(--mono); font-size: 12px; font-weight: 700; letter-spacing: .02em;
+}
+.tile-id { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.tile-name {
+  font-family: var(--font-display); font-size: 15px; font-weight: 600;
+  letter-spacing: -.01em; color: var(--text);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.tile-accs {
+  font-family: var(--mono); font-size: 8px;
+  letter-spacing: .1em; text-transform: uppercase;
+  color: var(--text-3);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
+.tile-ft { display: flex; align-items: center; gap: 10px; }
+.tile-meter { flex: 1; height: 2px; background: var(--rule); }
+.tile-meter i { display: block; height: 100%; transition: width var(--t-slow); }
+.tile-count {
+  font-family: var(--mono); font-size: 9px;
+  letter-spacing: var(--track); color: var(--text-3);
+}
+.tile-flag {
+  position: absolute; top: 14px; right: 14px;
+  font-family: var(--mono); font-size: 8px; font-weight: 700;
+  letter-spacing: .08em; color: var(--warning-text);
+}
+.tile-go {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-family: var(--mono); font-size: 8px;
+  letter-spacing: var(--track); text-transform: uppercase;
+  color: var(--text-3);
+}
+.tile:hover .tile-go { color: var(--brand); }
+
+/* ═══ FORM PANELS ═════════════════════════════════════════════════════════ */
+
+/* Two explicit columns rather than auto-fit. Auto-fit gave every panel the
+   same width, which squeezed the account rows (platform + name + username on
+   one line) into unreadable 90px fields while the delete panel sat next to a
+   column of dead space. Panels that hold a row of inputs span the full
+   width instead. */
+.form-grid {
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1px; background: var(--rule); border: 1px solid var(--rule);
+}
+.card-panel--span { grid-column: 1 / -1; }
+@media (max-width: 900px) { .form-grid { grid-template-columns: 1fr; } }
+.card-panel {
+  background: var(--bg); padding: 20px;
+  display: flex; flex-direction: column; gap: 15px;
+}
+.card-panel--danger { border-top: 2px solid var(--danger-border); }
+.panel-t {
+  font-family: var(--mono); font-size: 10px; font-weight: 700;
+  letter-spacing: var(--track); text-transform: uppercase;
+  color: var(--text); margin: 0;
+}
+.panel-sub, .panel-empty {
+  margin: -6px 0 0;
+  font-size: 11.5px; line-height: 1.6; color: var(--text-3);
+}
+.panel-empty { font-family: var(--mono); font-size: 10px; letter-spacing: .06em; }
+
+.swatches { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.swatch {
+  appearance: none; width: 26px; height: 26px;
+  border: 1px solid var(--rule); cursor: pointer;
+  transition: transform var(--t-fast), border-color var(--t-fast);
+}
+.swatch:hover { transform: scale(1.1); }
+.swatch.is-on { border-color: var(--text); box-shadow: 0 0 0 1px var(--text); }
+.color-native {
+  appearance: none; width: 26px; height: 26px; padding: 0;
+  border: 1px solid var(--rule); background: none; cursor: pointer;
+}
+.color-native::-webkit-color-swatch-wrapper { padding: 2px; }
+.color-native::-webkit-color-swatch { border: 0; }
+
+.logo-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.logo-prev {
+  width: 46px; height: 46px; flex-shrink: 0;
+  object-fit: contain; background: var(--surface-hi);
+  border: 1px solid var(--rule);
+}
+.logo-prev--txt {
+  display: inline-flex; align-items: center; justify-content: center;
+  font-family: var(--mono); font-size: 14px; font-weight: 700;
+}
+
+.acc-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 11px 0; border-top: 1px solid var(--rule);
+}
+.acc-main { display: grid; grid-template-columns: 116px 1fr 1fr; gap: 7px; flex: 1; min-width: 0; }
+.acc-side { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.acc-ratio {
+  font-family: var(--mono); font-size: 9px;
+  letter-spacing: .06em; color: var(--text-3);
+  border: 1px solid var(--rule); padding: 3px 6px;
+}
+
+.url-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.url {
+  flex: 1; min-width: 190px;
+  font-family: var(--mono); font-size: 10px; color: var(--text-2);
+  background: #0d0d0d; border: 1px solid var(--rule);
+  padding: 8px 10px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+.usage { display: flex; align-items: center; gap: 10px; }
+.usage-bar { flex: 1; height: 3px; background: var(--rule); }
+.usage-bar i { display: block; height: 100%; background: var(--brand); }
+.usage-n { font-family: var(--mono); font-size: 9px; letter-spacing: .06em; color: var(--text-3); }
+
+/* ═══ HEADER ══════════════════════════════════════════════════════════════ */
+
+.hd-id { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+.hd-client {
+  font-family: var(--font-display);
+  font-size: 17px; font-weight: 600; letter-spacing: -.02em;
+  margin: 0; white-space: nowrap;
+}
+.hd-handle { font-size: 9px; color: var(--text-3); }
+
+.stepper { display: flex; align-items: center; gap: 2px; flex-shrink: 0; }
+.stepper-v { font-size: 10px; min-width: 116px; text-align: center; color: var(--text-2); }
+
+.iconbtn {
+  appearance: none; border: 1px solid transparent; background: none;
+  width: 28px; height: 28px;
+  display: inline-flex; align-items: center; justify-content: center;
+  color: var(--text-3); cursor: pointer;
+  transition: color var(--t-fast), border-color var(--t-fast);
+}
+.iconbtn:hover { color: var(--brand); border-color: var(--rule); }
+
+.search-wrap {
+  display: flex; align-items: center; gap: 6px;
+  border: 1px solid var(--rule);
+  padding: 0 9px; height: 30px;
+  color: var(--text-3);
+  flex-shrink: 1; min-width: 90px;
+}
+.search-wrap:focus-within { border-color: var(--brand); box-shadow: var(--glow); }
+.search {
+  appearance: none; border: 0; background: none; outline: none;
+  color: var(--text); font-family: var(--font); font-size: 12px;
+  width: 100%; min-width: 0;
+}
+.search::placeholder { color: var(--placeholder); }
+.search::-webkit-search-cancel-button { filter: grayscale(1) opacity(.5); }
+
+/* ═══ SEGMENTED ═══════════════════════════════════════════════════════════
+   One control for every either/or in the app: account, type, view, status. */
+
+.seg { display: flex; flex-shrink: 0; }
+.seg-b {
+  appearance: none;
+  border: 1px solid var(--rule); border-right: 0;
+  background: none;
+  height: 30px; padding: 0 11px;
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 9px; color: var(--text-3);
+  cursor: pointer; white-space: nowrap;
+  transition: color var(--t-fast), border-color var(--t-fast), background var(--t-fast);
+}
+.seg-b:last-child { border-right: 1px solid var(--rule); }
+.seg-b:hover { color: var(--text); background: var(--surface-lt); }
+.seg-b[aria-pressed="true"] {
+  color: var(--brand); border-color: var(--brand); font-weight: 700;
+  text-shadow: var(--glow);
+}
+.seg-b[aria-pressed="true"] + .seg-b { border-left-color: var(--brand); }
+@media (max-width: 1180px) { .seg--view .seg-t { display: none; } }
+
+/* ═══ BUTTONS ═════════════════════════════════════════════════════════════ */
+
+.btn {
+  appearance: none;
+  border: 1px solid var(--rule);
+  background: none;
+  color: var(--text-2);
+  height: 30px; padding: 0 12px;
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 9px; cursor: pointer; white-space: nowrap;
+  transition: color var(--t-fast), border-color var(--t-fast), background var(--t-fast);
+}
+.btn:hover { color: var(--text); border-color: var(--rule-2); background: var(--surface-lt); }
+.btn--primary {
+  background: var(--brand); border-color: var(--brand); color: var(--brand-on);
+  font-weight: 700; box-shadow: var(--glow);
+}
+.btn--primary:hover { background: var(--brand-hi); border-color: var(--brand-hi); color: var(--brand-on); }
+.btn--danger { color: var(--danger-text); border-color: var(--danger-border); }
+.btn--danger:hover { color: var(--danger-text); border-color: var(--danger-text); background: var(--danger-bg); }
+
+/* ═══ THUMB ═══════════════════════════════════════════════════════════════ */
+
+.thumb {
+  position: relative;
+  background: var(--surface-lt);
+  overflow: hidden;
+  flex-shrink: 0;
+}
+.thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.thumb img.is-broken,
+.thumb--empty {
+  display: flex; align-items: center; justify-content: center;
+  color: var(--rule-2);
+  background: repeating-linear-gradient(45deg,
+    var(--surface-lt) 0 10px, var(--surface-hi) 10px 20px);
+}
+.thumb img.is-broken { object-fit: contain; font-size: 0; color: transparent; }
+
+.thumb-tag {
+  position: absolute; top: 0; right: 0;
+  padding: 2px 5px;
+  background: rgba(8,8,8,.86); backdrop-filter: blur(6px);
+  color: #f2f2f2; font-size: 8px; font-weight: 700;
+}
+.thumb-tag--l { right: auto; left: 0; color: var(--brand); }
+
+/* ═══ BOARD ═══════════════════════════════════════════════════════════════
+   The pipeline. The view the old tool never had. */
+
+.board {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(200px, 1fr));
+  height: 100%;
+  align-items: start;
+}
+.col {
+  border-right: 1px solid var(--rule);
+  height: 100%;
+  display: flex; flex-direction: column;
+  min-width: 0;
+  transition: background var(--t-fast);
+}
+.col:last-child { border-right: 0; }
+body.is-dragging .col { background: rgba(242,199,0,.02); }
+.col.is-over { background: rgba(242,199,0,.07); box-shadow: inset 0 0 0 1px var(--brand); }
+
+.col-hd {
+  display: flex; align-items: center; gap: 7px;
+  padding: 11px 12px;
+  border-bottom: 1px solid var(--rule);
+  font-size: 9px;
+  flex-shrink: 0;
+}
+.col-token { color: var(--text-3); }
+.col-name  { color: var(--text-2); }
+.col-n     { margin-left: auto; color: var(--text-3); }
+.col[data-s="approvato"] .col-token,
+.col[data-s="approvato"] .col-name { color: var(--brand); text-shadow: var(--glow); }
+.col[data-s="revisione"] .col-token,
+.col[data-s="revisione"] .col-name { color: var(--warning-text); }
+
+.col-body { padding: 10px; display: flex; flex-direction: column; gap: 9px; overflow-y: auto; flex: 1; }
+.col-empty { color: var(--rule-2); text-align: center; padding: 20px 0; font-family: var(--mono); }
+
+.card {
+  border: 1px solid var(--rule);
+  background: var(--bg);
+  cursor: pointer;
+  text-align: left;
+  transition: border-color var(--t-fast);
+  position: relative;
+}
+.card:hover { border-color: var(--rule-2); }
+.card.is-sel { border-color: var(--brand); box-shadow: var(--glow); }
+.card.is-ghost { opacity: .35; }
+
+/* Board cards crop to a wide banner whatever the platform: a pipeline column
+   is for scanning a queue. The true published ratio is the grid's job. */
+.card .thumb { aspect-ratio: 16 / 9 !important; }
+
+.card-body { padding: 8px 9px 9px; display: flex; flex-direction: column; gap: 6px; }
+.card-meta { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.card-date { font-size: 9px; color: var(--text-3); }
+.card-copy {
+  margin: 0; font-size: 11.5px; line-height: 1.45; color: var(--text-2);
+  display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
+}
+.card-note {
+  font-size: 10.5px; line-height: 1.4;
+  color: var(--warning-text);
+  border-left: 2px solid var(--warning-border);
+  padding-left: 7px;
+}
+
+.ptag { display: inline-flex; align-items: center; gap: 5px; font-size: 8px; color: var(--text-3); }
+.ptag i { width: 5px; height: 5px; flex-shrink: 0; }
+
+/* ═══ GRID ════════════════════════════════════════════════════════════════
+   Profile order. Frames butt together because that is what a feed looks
+   like — gutters and rounded cards misrepresent it. */
+
+.gridview { padding: 16px; }
+.hint {
+  font-size: 10px; color: var(--text-3); margin: 0 0 12px;
+  font-family: var(--mono); letter-spacing: .06em;
+}
+.ggrid {
+  display: grid;
+  grid-template-columns: repeat(var(--gcols, 3), minmax(0, 1fr));
+  gap: 1px;
+  background: var(--rule);
+  border: 1px solid var(--rule);
+  max-width: 720px;
+}
+.gcell {
+  background: var(--bg);
+  cursor: grab;
+  position: relative;
+  transition: box-shadow var(--t-fast);
+}
+.gcell:hover  { box-shadow: inset 0 0 0 1px var(--rule-2); }
+.gcell.is-sel { box-shadow: inset 0 0 0 1px var(--brand); }
+.gcell.is-over { box-shadow: inset 0 0 0 2px var(--brand); }
+.gcell.is-ghost { opacity: .3; }
+
+.gcell-bar {
+  display: flex; align-items: center; gap: 6px;
+  padding: 5px 7px;
+  font-size: 8px; color: var(--text-3);
+}
+.gcell-i { color: var(--rule-2); }
+.gcell-date { margin-left: auto; }
+
+.sdot { width: 5px; height: 5px; flex-shrink: 0; background: var(--text-3); display: inline-block; }
+.sdot[data-s="approvato"] { background: var(--brand); box-shadow: var(--glow); }
+.sdot[data-s="revisione"] { background: var(--danger-text); }
+.sdot[data-s="approvare"] { background: var(--warning-text); }
+
+/* ═══ CALENDAR ════════════════════════════════════════════════════════════
+   Posts AND stories on one surface — the reason the type filter does not
+   apply here. */
+
+.cal {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 1px;
+  background: var(--rule);
+  border-bottom: 1px solid var(--rule);
+}
+.cal-hd {
+  background: var(--bg);
+  padding: 8px 10px;
+  font-size: 8px; color: var(--text-3);
+}
+.cal-cell {
+  background: var(--bg);
+  min-width: 0;
+  min-height: 104px;
+  padding: 7px;
+  display: flex; flex-direction: column; gap: 4px;
+  transition: background var(--t-fast);
+}
+.cal-cell--pad { background: var(--surface-lt); opacity: .35; }
+.cal-cell.is-over { background: rgba(242,199,0,.08); box-shadow: inset 0 0 0 1px var(--brand); }
+.cal-day { font-size: 10px; color: var(--text-3); }
+.cal-cell.is-today .cal-day { color: var(--brand); font-weight: 700; text-shadow: var(--glow); }
+
+.cal-item {
+  appearance: none; border: 0; background: var(--surface-lt);
+  border-left: 2px solid var(--text-3);
+  display: flex; align-items: center; gap: 5px;
+  padding: 4px 6px;
+  cursor: pointer; text-align: left; width: 100%;
+  transition: background var(--t-fast);
+}
+.cal-item:hover { background: var(--surface-hi); }
+.cal-item[data-s="approvato"] { border-left-color: var(--brand); }
+.cal-item[data-s="revisione"] { border-left-color: var(--danger-text); }
+.cal-item[data-s="approvare"] { border-left-color: var(--warning-text); }
+.cal-item-k {
+  font-family: var(--mono); font-size: 8px; font-weight: 700;
+  color: var(--text-3); flex-shrink: 0;
+}
+.cal-item-t {
+  font-size: 10px; color: var(--text-2);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
+/* ═══ EMPTY ═══════════════════════════════════════════════════════════════ */
+
+.empty {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 14px; height: 100%; color: var(--text-3);
+}
+.empty p { margin: 0; font-family: var(--mono); font-size: 11px; letter-spacing: .06em; }
+
+
+/* ═══ COVERAGE CALENDAR ═══════════════════════════════════════════════════
+   The Calendario section. A coverage map, not a content view: it answers
+   "which days are filled and which are empty", so it carries no titles and no
+   thumbnails — one dot per post is the whole vocabulary, and the eye reads
+   density across a grid far faster than it reads a column of names.
+
+   Filled days are lifted out of the ground rather than outlined, so the shape
+   of the month is legible from across a desk. */
+
+.cov-bar {
+  display: flex; align-items: center; gap: 14px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+.legend { display: flex; align-items: center; gap: 14px; }
+.legend-i {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-family: var(--mono); font-size: 8px;
+  letter-spacing: var(--track); text-transform: uppercase;
+  color: var(--text-3);
+}
+
+.cov {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 1px;
+  background: var(--rule);
+  border: 1px solid var(--rule);
+  max-width: 940px;
+}
+.cov-hd {
+  background: var(--bg);
+  padding: 8px 10px;
+  font-family: var(--mono); font-size: 8px;
+  letter-spacing: var(--track); text-transform: uppercase;
+  color: var(--text-3);
+}
+.cov-cell {
+  appearance: none; border: 0;
+  background: var(--bg);
+  min-height: 92px;
+  padding: 9px;
+  display: flex; flex-direction: column; gap: 9px;
+  align-items: flex-start;
+  text-align: left; cursor: pointer;
+  transition: background var(--t-fast);
+}
+.cov-cell:hover { background: var(--surface-lt); }
+.cov-cell--pad { background: var(--surface-lt); opacity: .3; cursor: default; }
+.cov-cell.is-full { background: var(--surface-lt); }
+.cov-cell.is-full:hover { background: var(--surface-hi); }
+
+.cov-day {
+  font-family: var(--mono); font-size: 10px;
+  letter-spacing: .04em; color: var(--text-3);
+}
+.cov-cell.is-full .cov-day { color: var(--text-2); }
+.cov-cell.is-today .cov-day { color: var(--brand); font-weight: 700; text-shadow: var(--glow); }
+
+.cov-dots { display: flex; flex-wrap: wrap; gap: 5px; align-items: center; }
+.cov-more {
+  font-family: var(--mono); font-size: 8px;
+  letter-spacing: .04em; color: var(--text-3);
+}
+
+/* One dot per post. Status tints it; sponsorship makes it unmistakable. */
+.dot {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--text-3); flex-shrink: 0; display: inline-block;
+}
+.dot[data-s="approvato"] { background: var(--brand); }
+.dot[data-s="revisione"] { background: var(--danger-text); }
+.dot[data-s="approvare"] { background: var(--warning-text); }
+
+/* Sponsored: bigger, brand yellow, ringed and lit. Deliberately the loudest
+   mark in the section — a paid placement landing on the wrong day is the most
+   expensive mistake this calendar can prevent, so it must be visible without
+   being looked for. Size and ring carry it as well as colour, so it survives
+   colour-blindness and a greyscale print. */
+.dot--spon {
+  width: 11px; height: 11px;
+  background: var(--brand) !important;
+  box-shadow: 0 0 0 2px var(--bg), 0 0 0 3px var(--brand), var(--glow);
+}
+.cov-cell.is-spon { background: rgba(242, 199, 0, .07); }
+.cov-cell.is-spon:hover { background: rgba(242, 199, 0, .12); }
+
+/* ═══ SPONSORED, ELSEWHERE ════════════════════════════════════════════════ */
+
+.thumb-spon {
+  position: absolute; bottom: 0; left: 0;
+  padding: 2px 6px;
+  background: var(--brand); color: var(--brand-on);
+  font-family: var(--mono); font-size: 8px; font-weight: 700;
+  letter-spacing: .1em;
+}
+.card.is-spon  { border-color: var(--brand); }
+.gcell.is-spon { box-shadow: inset 0 0 0 1px var(--brand); }
+
+.cal-item.is-spon {
+  border-left-color: var(--brand);
+  border-left-width: 3px;
+  background: rgba(242, 199, 0, .1);
+}
+.cal-item.is-spon .cal-item-k { color: var(--brand); font-weight: 700; }
+.cal-item.is-spon .cal-item-t { color: var(--text); }
+
+.stat--spon .stat-n { color: var(--brand); }
+.stat--spon { position: relative; }
+.stat--spon::after {
+  content: ""; position: absolute; inset: auto 0 0 0; height: 2px;
+  background: var(--brand); box-shadow: var(--glow);
+}
+
+/* ═══ TOGGLE ══════════════════════════════════════════════════════════════
+   A real switch, not a checkbox: sponsorship is binary and consequential, and
+   the track makes its state readable at a glance from across the panel. */
+
+.toggle {
+  appearance: none; border: 1px solid var(--rule); background: none;
+  display: inline-flex; align-items: center; gap: 9px;
+  padding: 8px 11px; width: 100%;
+  font-family: var(--mono); font-size: 10px;
+  letter-spacing: var(--track); text-transform: uppercase;
+  color: var(--text-3); cursor: pointer;
+  transition: border-color var(--t-fast), color var(--t-fast), background var(--t-fast);
+}
+.toggle:hover { border-color: var(--rule-2); color: var(--text-2); }
+.toggle.is-on {
+  border-color: var(--brand); color: var(--brand);
+  background: rgba(242, 199, 0, .07);
+  text-shadow: var(--glow);
+}
+.toggle-track {
+  width: 26px; height: 14px; flex-shrink: 0;
+  border: 1px solid var(--rule-2);
+  display: inline-flex; align-items: center;
+  padding: 1px;
+  transition: border-color var(--t-fast), background var(--t-fast);
+}
+.toggle-track i {
+  width: 10px; height: 10px; background: var(--text-3);
+  transition: transform var(--t-base), background var(--t-fast);
+}
+.toggle.is-on .toggle-track { border-color: var(--brand); background: rgba(242, 199, 0, .14); }
+.toggle.is-on .toggle-track i { transform: translateX(12px); background: var(--brand); }
+
+/* ═══ INSPECTOR ═══════════════════════════════════════════════════════════
+   Docked, not modal — you edit while the board stays visible. */
+
+.insp-hd {
+  display: flex; align-items: center; gap: 8px;
+  height: 38px; padding: 0 10px 0 12px;
+  border-bottom: 1px solid var(--rule);
+  flex-shrink: 0;
+}
+.insp-kind { font-size: 9px; color: var(--brand); }
+.insp-id   { font-size: 8px; color: var(--rule-2); }
+
+.insp-body { padding: 12px; overflow-y: auto; flex: 1; display: flex; flex-direction: column; gap: 14px; }
+.insp-body > .thumb { max-height: 230px; }
+
+.f { display: flex; flex-direction: column; gap: 6px; }
+.f-row { display: flex; gap: 8px; }
+.f-row > .f { flex: 1; }
+.f-label { font-size: 8px; color: var(--text-3); }
+.f-hint  { margin: 0; font-size: 9px; color: var(--text-3); font-family: var(--mono); letter-spacing: .04em; }
+
+.input {
+  width: 100%;
+  background: #0d0d0d;
+  border: 1px solid var(--rule);
+  color: var(--text);
+  font-family: var(--font); font-size: 12px;
+  padding: 8px 9px;
+  transition: border-color var(--t-fast), box-shadow var(--t-fast);
+}
+.input:focus { outline: none; border-color: var(--brand); box-shadow: var(--glow); }
+.input--area { resize: vertical; line-height: 1.55; min-height: 62px; }
+.input::placeholder { color: var(--placeholder); }
+select.input { font-family: var(--mono); font-size: 10px; letter-spacing: .06em; text-transform: uppercase; }
+
+.seg--status { width: 100%; }
+.seg--status .seg-b { flex: 1; justify-content: center; font-family: var(--mono); }
+.seg--status .seg-b[data-s="approvato"][aria-pressed="true"] { color: var(--brand); border-color: var(--brand); }
+.seg--status .seg-b[data-s="revisione"][aria-pressed="true"] { color: var(--danger-text); border-color: var(--danger-border); text-shadow: none; }
+.seg--status .seg-b[data-s="approvare"][aria-pressed="true"] { color: var(--warning-text); border-color: var(--warning-border); text-shadow: none; }
+
+.chips { display: flex; flex-wrap: wrap; gap: 5px; }
+.chip {
+  appearance: none; border: 1px solid var(--rule); background: none;
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 5px 8px; font-size: 8px; color: var(--text-3);
+  cursor: pointer;
+  transition: border-color var(--t-fast), color var(--t-fast);
+}
+.chip i { width: 5px; height: 5px; flex-shrink: 0; }
+.chip:hover { border-color: var(--rule-2); color: var(--text-2); }
+.chip.is-on { border-color: var(--brand); color: var(--brand); }
+
+/* Asset/placement mismatch. Warning, not error: the post is still valid, it
+   just will not fill its frame — and the person reading this is the one who
+   can re-export it. */
+.fitwarn {
+  display: flex; flex-direction: column; gap: 3px;
+  padding: 9px 10px;
+  border: 1px solid var(--warning-border);
+  border-left-width: 2px;
+  background: var(--warning-bg);
+  color: var(--warning-text);
+  font-size: 11px; line-height: 1.5;
+}
+.fitwarn b {
+  font-family: var(--mono); font-size: 8px; font-weight: 700;
+  letter-spacing: .1em; text-transform: uppercase;
+}
+
+.insp-client {
+  border: 1px solid var(--warning-border);
+  border-left-width: 2px;
+  background: var(--warning-bg);
+  padding: 9px 10px;
+}
+.insp-client-hd { display: block; font-size: 8px; color: var(--warning-text); margin-bottom: 4px; }
+.insp-client p  { margin: 0; font-size: 11.5px; line-height: 1.5; color: var(--warning-text); }
+
+.insp-ft {
+  display: flex; align-items: center; gap: 8px;
+  padding: 10px 12px;
+  border-top: 1px solid var(--rule);
+  flex-shrink: 0;
+}
+
+/* ═══ STATUS BAR ══════════════════════════════════════════════════════════ */
+
+#status { font-size: 9px; color: var(--text-3); }
+.st-left, .st-right { display: flex; align-items: center; gap: 12px; }
+.st-seg { display: inline-flex; align-items: center; gap: 5px; }
+.st-seg b { font-weight: 400; color: var(--rule-2); }
+.st-seg[data-s="approvato"] b { color: var(--brand); }
+.st-seg[data-s="revisione"] b { color: var(--danger-text); }
+.st-seg[data-s="approvare"] b { color: var(--warning-text); }
+.st-bar { letter-spacing: 0; color: var(--rule-2); }
+.st-bar b { color: var(--brand); font-weight: 400; text-shadow: var(--glow); }
+.st-ratio { color: var(--text-2); }
+.st-save { border: 1px solid var(--rule); padding: 2px 7px; }
+.st-save[data-state="saving"] { color: var(--brand); border-color: var(--brand); }
+
+/* ═══ PALETTE ═════════════════════════════════════════════════════════════ */
+
+#palette {
+  position: fixed; inset: 0; z-index: 200;
+  display: none;
+  align-items: flex-start; justify-content: center;
+  padding-top: 14vh;
+  background: rgba(0,0,0,.72);
+  backdrop-filter: blur(3px);
+}
+#palette.is-open { display: flex; }
+.pal-box {
+  width: 100%; max-width: 520px;
+  background: var(--surface-hi);
+  border: 1px solid var(--rule-2);
+  border-top: 2px solid var(--brand);
+  max-height: 62vh; display: flex; flex-direction: column;
+}
+#pal-input {
+  appearance: none; border: 0; border-bottom: 1px solid var(--rule);
+  background: none; outline: none;
+  color: var(--text);
+  font-family: var(--mono); font-size: 13px; letter-spacing: .04em;
+  padding: 14px 16px;
+}
+#pal-input::placeholder { color: var(--placeholder); }
+#pal-list { overflow-y: auto; }
+.pal-row {
+  appearance: none; border: 0; background: none;
+  display: flex; align-items: center; gap: 12px;
+  width: 100%; padding: 9px 16px;
+  cursor: pointer; text-align: left;
+}
+.pal-row:hover, .pal-row.is-on { background: var(--surface-lt); }
+.pal-row.is-on .pal-label { color: var(--brand); }
+.pal-group { font-size: 8px; color: var(--text-3); min-width: 62px; }
+.pal-label { font-size: 12px; color: var(--text-2); }
+.pal-empty { padding: 18px 16px; font-family: var(--mono); font-size: 10px; color: var(--text-3); }
+
+/* ═══ TOAST ═══════════════════════════════════════════════════════════════ */
+
+#toast {
+  position: fixed; left: 50%; bottom: calc(var(--st-h) + 16px);
+  transform: translate(-50%, 10px);
+  z-index: 300; opacity: 0; pointer-events: none;
+  background: var(--brand); color: var(--brand-on);
+  font-family: var(--mono); font-size: 9px; font-weight: 700;
+  letter-spacing: var(--track); text-transform: uppercase;
+  padding: 9px 15px;
+  box-shadow: var(--glow);
+  transition: opacity var(--t-base), transform var(--t-base);
+}
+#toast.is-on { opacity: 1; transform: translate(-50%, 0); }
+
+/* ═══ NARROW ══════════════════════════════════════════════════════════════
+   The three-column frame collapses to one column with the rail as a
+   horizontal strip. Board columns scroll sideways rather than squeezing to
+   unreadable widths. */
+
+@media (max-width: 1000px) {
+  body { overflow: auto; }
+  .app {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto auto 1fr auto;
+    grid-template-areas: "rail" "header" "view" "status";
+    height: auto; min-height: 100vh;
+  }
+  body.has-inspector .app { grid-template-columns: 1fr; }
+  #rail { flex-direction: row; align-items: center; border-right: 0; border-bottom: 1px solid var(--rule); overflow-x: auto; }
+  .rail-hd { border-bottom: 0; border-right: 1px solid var(--rule); width: auto; }
+  .rail-ft { display: none; }
+  .menu { flex-direction: row; padding: 0; }
+  .menu-item { border-left: 0; border-bottom: 2px solid transparent; white-space: nowrap; min-height: 44px; }
+  .menu-item.is-on { border-bottom-color: var(--brand); }
+  .page { padding: 20px 16px 40px; }
+  .home-stats { grid-template-columns: repeat(2, 1fr); width: 100%; max-width: 320px; }
+  .cov-cell { min-height: 72px; padding: 7px; }
+  .cov { max-width: none; }
+  .acc-main { grid-template-columns: 1fr; }
+  #header { height: auto; flex-wrap: wrap; padding: 10px 12px; }
+  #inspector.is-open {
+    position: fixed; inset: auto 0 0 0; z-index: 150;
+    height: 78vh; border-left: 0; border-top: 2px solid var(--brand);
+    background: var(--bg);
+  }
+  .board { grid-template-columns: repeat(4, 240px); overflow-x: auto; }
+  .btn, .seg-b, .iconbtn { min-height: 40px; }   /* finger, not pointer */
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    transition-duration: .01ms !important;
+    animation-duration: .01ms !important;
+  }
+}

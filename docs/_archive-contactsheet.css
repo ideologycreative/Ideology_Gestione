@@ -1,0 +1,850 @@
+/*
+ * IDEOLOGY STUDIO — art direction
+ * ═══════════════════════════════════════════════════════════════════════════
+ *
+ * Loaded LAST, after ideology.css. That file is generated from the source
+ * tool and carries its component structure; this one carries the identity.
+ * Keeping them separate means a re-run of the extractor can never overwrite
+ * the design, and the design can be reworked without touching the generator.
+ *
+ * ─── THE PROBLEM THIS SOLVES ───────────────────────────────────────────────
+ * Swapping the old tool's palette for yellow-on-black produced a competent
+ * dark admin panel. Competent is the problem: Ideology describes itself as
+ * "indomabili avanguardisti", and a rounded-card dashboard with a rainbow of
+ * status pills says the opposite. The brand is not a colour, it is a posture.
+ *
+ * ─── THE DIRECTION: CONTACT SHEET ──────────────────────────────────────────
+ * A photographer's contact sheet, set by a Swiss typographer. Five rules:
+ *
+ *   1. INK AND RULES, NOT CARDS.
+ *      One black ground everywhere. Nothing floats on a lighter fill with a
+ *      shadow. Structure comes from 1px hairlines, the way a print grid does.
+ *      This is the single biggest change — dark SaaS reads as "stack of grey
+ *      boxes", editorial reads as "one page, divided".
+ *
+ *   2. TYPE CARRIES HIERARCHY, NOT COLOUR.
+ *      Gustavo (display) for names and numerals, big. PP Neue Montreal for
+ *      body. Labels are 10px uppercase at wide tracking. Size and weight do
+ *      the work, so colour is freed up to mean something.
+ *
+ *   3. YELLOW IS INK, NOT PAINT.
+ *      #F2C700 marks exactly four things: the active location, the approved
+ *      state, the primary action, and figures that matter. Everything else is
+ *      greyscale. A yellow that appears everywhere stops being a signal — the
+ *      first pass had yellow buttons, yellow pills and yellow badges all
+ *      competing, and none of them read as important.
+ *
+ *   4. RIGHT ANGLES.
+ *      Radius 0, with 2px reserved for the wordmark block. The source's 6-8px
+ *      rounding everywhere is what made it read as generic; hard corners are
+ *      the studio's own visual language.
+ *
+ *   5. THE WORK DOMINATES.
+ *      This is a tool for judging images. Chrome recedes to hairlines and
+ *      small caps; the pictures get the contrast.
+ *
+ * Accessibility is not traded away for any of this: body text stays ≥13px,
+ * every foreground/background pair here clears 4.5:1, focus rings are kept
+ * and strengthened, hit targets stay ≥32px on pointer / 44px on touch, and
+ * the reduced-motion block at the end is honoured.
+ */
+
+/* ═══ 1 · GROUND ══════════════════════════════════════════════════════════
+   One ink. Panels stop being lighter boxes and become regions of the same
+   page, divided by rules. --rule is the workhorse: at #262626 on #101010 it
+   is visible without becoming a grey stripe. */
+
+:root {
+  --rule:        #262626;
+  --rule-strong: #3a3a3a;
+  --rule-brand:  var(--brand);
+
+  /* Editorial type roles, layered over the base tokens. */
+  --micro:       10px;      /* uppercase labels                */
+  --micro-track: .16em;
+
+  /* Hard corners. Overriding the base tokens means every inherited component
+     squares off at once, instead of being chased selector by selector. */
+  --r:      0px;
+  --rs:     0px;
+  --r-xs:   0px;
+  --r-pill: 0px;
+  --bw:     1px;
+
+  /* Shadows are a lighting model, and this design has no light source —
+     depth is carried by rules. Neutralised rather than removed so any
+     inherited var(--shadow-*) resolves to nothing. */
+  --shadow-sm: none;
+  --shadow-md: none;
+  --shadow-lg: 0 24px 64px rgba(0, 0, 0, .8);
+  --shadow-xl: 0 32px 80px rgba(0, 0, 0, .85);
+
+  --border:    var(--rule);
+  --border-lt: #1c1c1c;
+  --surface:   var(--bg);
+  --surface-lt: #161616;
+  --surface-hi: #1e1e1e;
+}
+
+body {
+  font-feature-settings: "ss01", "cv01";
+  /* Figures line up in columns everywhere — dates, counts, prices. Without
+     this the tabular data in the index and calendar jitters column to column
+     as digits change width. */
+  font-variant-numeric: tabular-nums;
+}
+
+/* ═══ 2 · TYPOGRAPHIC PRIMITIVES ══════════════════════════════════════════ */
+
+/* The editorial micro-label. Used for every column head, section label and
+   status word in the app. 10px is small, so it is never the only carrier of
+   meaning — it always sits beside a number, a name or a swatch. */
+.content-tag,
+.kpi-label,
+.table-wrap th,
+.sb-group-lbl,
+.field > label,
+.micro {
+  font-size: var(--micro) !important;
+  font-weight: 500;
+  letter-spacing: var(--micro-track);
+  text-transform: uppercase;
+  color: var(--ink-3, var(--text-3));
+  font-variant-numeric: tabular-nums;
+}
+
+/* ═══ 3 · MASTHEAD ════════════════════════════════════════════════════════
+   The topbar is the masthead of a publication, not an app chrome bar. Taller,
+   flat, closed by a single rule. */
+
+.topbar {
+  height: 60px;
+  background: var(--bg) !important;
+  border-bottom: 1px solid var(--rule) !important;
+  padding-left: 0;
+  backdrop-filter: none;
+}
+
+.topbar-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 100%;
+  padding: 0 18px;
+  border-right: 1px solid var(--rule);
+  flex-shrink: 0;
+}
+
+/* The one place a radius survives — the mark is a stamp, and a stamp has a
+   little rounding. 2px, no more. */
+.brand-mark {
+  width: 30px;
+  height: 30px;
+  border-radius: 2px;
+  background: var(--brand);
+  color: var(--brand-on);
+  font-family: var(--font-mark);
+  font-size: 14px;
+  letter-spacing: -.06em;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.brand-name {
+  font-family: var(--font-mark);
+  font-size: 15px;
+  letter-spacing: .02em;
+  color: var(--text);
+  text-transform: lowercase;
+}
+
+/* Client identity sits in the masthead beside the wordmark, separated by a
+   rule — the reader is always told which publication and which issue. */
+.topbar-client-section {
+  gap: 0 !important;
+  height: 100%;
+}
+
+.subtopbar-client {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 100%;
+  padding: 0 18px;
+  border-right: 1px solid var(--rule);
+  cursor: pointer;
+  transition: background var(--t-fast);
+}
+.subtopbar-client:hover { background: var(--surface-lt); }
+
+.subtopbar-name {
+  font-family: var(--font-display);
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: var(--ls-tight);
+  color: var(--text);
+}
+.subtopbar-pkg {
+  font-size: var(--micro);
+  letter-spacing: var(--micro-track);
+  text-transform: uppercase;
+  color: var(--text-3);
+}
+.subtopbar-back { color: var(--text-3); font-size: 16px; }
+
+/* ═══ 4 · NAVIGATION ══════════════════════════════════════════════════════
+   Tabs as a running head. The active one is marked by a hard 2px yellow rule
+   sitting exactly on the masthead's bottom border — the tab "cuts" the line,
+   which reads as location far more strongly than a filled pill. */
+
+.tab-nav {
+  height: 100%;
+  padding: 0 8px;
+  gap: 0;
+}
+
+.tab-btn {
+  position: relative;
+  height: 100%;
+  margin: 0;
+  padding: 0 16px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--text-3);
+  background: none;
+  transition: color var(--t-fast), border-color var(--t-fast);
+}
+.tab-btn:hover { color: var(--text); }
+.tab-btn.active,
+.tab-btn[aria-selected="true"] {
+  color: var(--brand);
+  border-bottom-color: var(--brand);
+}
+
+/* Everything that used to be a pill in the secondary bars: squared, hairline,
+   micro-caps. One shape for the whole family instead of five. */
+.feed-chip,
+.appr-filter-chip,
+.month-pill,
+.acc-btn,
+.preview-chip,
+.sub-tab {
+  border-radius: 0 !important;
+  border: 1px solid var(--rule) !important;
+  background: transparent !important;
+  color: var(--text-2) !important;
+  font-size: 11px !important;
+  letter-spacing: .04em;
+  text-transform: none;
+  transition: border-color var(--t-fast), color var(--t-fast), background var(--t-fast);
+}
+.feed-chip:hover,
+.appr-filter-chip:hover,
+.month-pill:hover,
+.acc-btn:hover {
+  border-color: var(--rule-strong) !important;
+  color: var(--text) !important;
+  background: var(--surface-lt) !important;
+}
+.feed-chip.active,
+.appr-filter-chip.active,
+.month-pill.active,
+.acc-btn.active {
+  background: var(--brand) !important;
+  border-color: var(--brand) !important;
+  color: var(--brand-on) !important;
+  font-weight: 600;
+}
+
+/* ═══ 5 · BUTTONS ═════════════════════════════════════════════════════════
+   Two weights only: the primary action (solid yellow) and everything else
+   (hairline). The source had five button treatments; five weights means no
+   weight. */
+
+.btn {
+  border-radius: 0;
+  border: 1px solid var(--rule);
+  background: transparent;
+  color: var(--text-2);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  padding: 8px 14px;
+  min-height: 32px;
+  box-shadow: none;
+  transition: border-color var(--t-fast), color var(--t-fast), background var(--t-fast);
+}
+.btn:hover {
+  border-color: var(--rule-strong);
+  color: var(--text);
+  background: var(--surface-lt);
+}
+.btn.primary {
+  background: var(--brand);
+  border-color: var(--brand);
+  color: var(--brand-on);
+  font-weight: 700;
+}
+.btn.primary:hover {
+  background: var(--brand-hi);
+  border-color: var(--brand-hi);
+  color: var(--brand-on);
+}
+.btn.ghost { border-color: transparent; }
+.btn.ghost:hover { border-color: var(--rule); }
+.btn.danger { color: var(--danger-text); border-color: var(--danger-border); }
+.btn.sm { padding: 6px 11px; min-height: 28px; font-size: 10px; }
+
+/* ═══ 6 · SECTION HEADS ═══════════════════════════════════════════════════ */
+
+.content-bar {
+  background: var(--bg) !important;
+  border-bottom: 1px solid var(--rule) !important;
+  padding: 0 20px;
+  height: 52px;
+  gap: 12px;
+}
+
+.content-title {
+  font-family: var(--font-display);
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: var(--ls-tight);
+  color: var(--text);
+}
+
+.content-tag {
+  border: 0 !important;
+  background: none !important;
+  padding: 0 !important;
+  color: var(--text-3) !important;
+}
+
+/* ═══ 7 · STAT SLABS ══════════════════════════════════════════════════════
+   The KPI cards become a row of figures divided by vertical rules, like the
+   standfirst of a data feature. No fills, no borders, no shadows — the
+   numerals are set large enough in the display face to hold the space on
+   their own. The first slab carries a yellow top rule so the eye has one
+   entry point rather than four equal ones. */
+
+.kpi-grid {
+  display: grid;
+  gap: 0;
+  border-top: 1px solid var(--rule);
+  border-bottom: 1px solid var(--rule);
+  margin-bottom: 0;
+}
+
+.kpi-card {
+  background: none !important;
+  border: 0 !important;
+  border-right: 1px solid var(--rule) !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  padding: 18px 20px 20px;
+  transform: none !important;
+  position: relative;
+}
+.kpi-card:last-child { border-right: 0 !important; }
+.kpi-card:first-child::before {
+  content: "";
+  position: absolute;
+  top: -1px; left: 0;
+  width: 44px; height: 2px;
+  background: var(--brand);
+}
+
+.kpi-label { margin-bottom: 10px; }
+
+/* Scoped through .kpi-card so these beat the generic input rules further down
+   the file — both sets are !important, so the tie was being broken by source
+   order and the stat input kept its bordered box. */
+.kpi-val,
+.kpi-card .kpi-inp,
+.kpi-card input.kpi-inp {
+  /* Body face, not display: Gustavo's zero is slashed by default and cannot
+     be switched off with font-feature-settings, which rendered "€4300" with
+     two struck-through zeros and "0 h" as "Ø". Display face keeps the titles;
+     figures go to the face that can set them. */
+  font-family: var(--font) !important;
+  font-size: 38px !important;
+  font-weight: 600 !important;
+  letter-spacing: -.035em;
+  line-height: 1 !important;
+  letter-spacing: -.03em;
+  color: var(--text) !important;
+  /* Gustavo ships a slashed zero as its default figure. It is a nice detail
+     at caption size and a distraction set at 38px, where "€0" reads as a
+     symbol rather than an amount — so the alternate is switched off for
+     display figures only. */
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "zero" 0;
+  background: none !important;
+  border: 0 !important;
+  padding: 0 !important;
+  height: auto !important;
+  width: auto !important;
+  max-width: 140px;
+}
+.kpi-card .kpi-inp:focus,
+.kpi-card input.kpi-inp:focus {
+  outline: none !important;
+  border: 0 !important;
+  color: var(--brand) !important;
+}
+
+.kpi-sub {
+  margin-top: 8px;
+  font-size: 11px;
+  color: var(--text-3);
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+/* ═══ 8 · THE INDEX ═══════════════════════════════════════════════════════
+   The client table becomes a contents page. No card wrapper, no zebra fill,
+   no inner scroll box — just rules and a name set large enough to be the
+   thing you actually click.
+
+   Hover paints a yellow rule down the left edge and takes the name to brand
+   colour. It is a stronger, quieter affordance than a background wash, and
+   it keeps the row's text contrast identical whether hovered or not. */
+
+.table-hd {
+  padding: 26px 20px 12px;
+}
+.table-hd h3 {
+  font-family: var(--font-display);
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: var(--micro-track);
+  text-transform: uppercase;
+  color: var(--text-3);
+  margin: 0;
+}
+
+.table-wrap {
+  background: none !important;
+  border: 0 !important;
+  border-top: 1px solid var(--rule) !important;
+  border-radius: 0 !important;
+  overflow: visible !important;
+  margin-bottom: 0;
+}
+
+.table-wrap table { width: 100%; border-collapse: collapse; }
+
+.table-wrap th {
+  background: none !important;
+  border-bottom: 1px solid var(--rule) !important;
+  padding: 10px 16px !important;
+  text-align: left;
+}
+
+.table-wrap td {
+  border-bottom: 1px solid var(--border-lt) !important;
+  padding: 0 16px !important;
+  height: 56px;
+  background: none !important;
+  vertical-align: middle;
+  color: var(--text-2);
+  font-size: 13px;
+}
+
+.table-wrap tbody tr {
+  position: relative;
+  transition: background var(--t-fast);
+}
+.table-wrap tbody tr:hover { background: var(--surface-lt) !important; }
+
+/* The name cell is the headline of the row. */
+.table-wrap td:first-child {
+  font-family: var(--font-display);
+  font-size: 19px;
+  font-weight: 600;
+  letter-spacing: var(--ls-tight);
+  color: var(--text);
+  position: relative;
+  padding-left: 20px !important;
+}
+.table-wrap tbody tr:hover td:first-child { color: var(--brand); }
+.table-wrap tbody tr td:first-child::before {
+  content: "";
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 2px;
+  background: transparent;
+  transition: background var(--t-fast);
+}
+.table-wrap tbody tr:hover td:first-child::before { background: var(--brand); }
+
+/* Package badges: squared outline tags, all one shape. The source coloured
+   these by tier (yellow / blue / grey), which put three unrelated hues in a
+   column and made the tier read as a status. It is a label, so it is set as
+   one. */
+.pkg-badge,
+.pkg-starter, .pkg-essential, .pkg-professional, .pkg-enterprise {
+  border-radius: 0 !important;
+  background: none !important;
+  border: 1px solid var(--rule) !important;
+  color: var(--text-2) !important;
+  font-size: var(--micro) !important;
+  font-weight: 600 !important;
+  letter-spacing: var(--micro-track);
+  text-transform: uppercase;
+  padding: 3px 8px !important;
+}
+.pkg-badge svg, .pkg-professional svg, .pkg-essential svg, .pkg-starter svg { display: none; }
+
+/* Display figures elsewhere share the same treatment. */
+.content-title,
+.subtopbar-name,
+.table-wrap td:first-child,
+.cal-day-num {
+  font-feature-settings: "zero" 0;
+}
+
+/* Status dots in the index: squared, and off the stock traffic-light green.
+   Green/red is the one colour pair that fails for the most common form of
+   colour blindness, and there is no green anywhere else in this identity —
+   an active client is simply "on", which the brand colour already says. */
+.table-wrap .stato-dot,
+.table-wrap td .dot,
+.table-wrap td span[style*="border-radius:50%"],
+.table-wrap td span[style*="border-radius: 50%"] {
+  border-radius: 0 !important;
+  background: var(--brand) !important;
+  width: 5px !important;
+  height: 5px !important;
+}
+
+/* ═══ 9 · CONTACT SHEET ═══════════════════════════════════════════════════
+   The feed grid is the centre of the product, so it gets the strongest move:
+   the card chrome comes off entirely and the images butt up against each
+   other in a tight grid, the way a real contact sheet or the platform's own
+   profile grid does. That is also the honest preview — a client's feed has
+   no gutters and no rounded corners either.
+
+   Metadata drops below the frame as a small typographic block, and the whole
+   cell gets a yellow outline on hover instead of a lift. */
+
+.feed-cell {
+  border-radius: 0 !important;
+  background: var(--surface-lt) !important;
+  outline: 1px solid transparent;
+  outline-offset: 0;
+  transition: outline-color var(--t-fast);
+}
+.feed-cell:hover { outline-color: var(--brand); }
+
+/* The gradient scrim over the top of each frame existed to float white
+   controls over any image. With the chrome gone it is just haze on the work. */
+.cell-top-bar {
+  background: linear-gradient(to bottom, rgba(0,0,0,.55) 0%, transparent 100%) !important;
+  padding: 6px 8px 20px !important;
+}
+
+/* Status: a filled square plus a micro-label. Approved is the ONLY state that
+   gets brand yellow — so a month fills with yellow as it is signed off, and
+   "how far along is this client" is answerable from across the room. The
+   others stay greyscale except revision, which is the one state needing
+   action and so keeps a warning hue. */
+.feed-cell-stato-btn {
+  border-radius: 0 !important;
+  background: rgba(10, 10, 10, .82) !important;
+  border: 1px solid var(--rule-strong) !important;
+  color: var(--text-2) !important;
+  font-size: var(--micro) !important;
+  font-weight: 600 !important;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  padding: 3px 7px !important;
+  backdrop-filter: blur(6px);
+}
+.feed-cell-stato-btn:hover {
+  border-color: var(--brand) !important;
+  color: var(--brand) !important;
+  background: rgba(10, 10, 10, .92) !important;
+}
+/* The colour dot the markup already renders becomes the square. */
+.feed-cell-stato-btn > span:first-child {
+  border-radius: 0 !important;
+  width: 5px !important;
+  height: 5px !important;
+}
+
+/* Metadata chips under the frame: no fills, no borders, just a mark and a
+   word. Twelve outlined chips in a grid is noise; twelve small marks is a
+   pattern you can read. */
+.cell-tags-bar {
+  background: none !important;
+  padding: 6px 2px 0 !important;
+  gap: 10px !important;
+}
+.pilastro-chip,
+.tag-chip {
+  border-radius: 0 !important;
+  border: 0 !important;
+  background: none !important;
+  padding: 0 !important;
+  font-size: var(--micro) !important;
+  font-weight: 600 !important;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--text-3) !important;
+  max-width: 110px;
+}
+/* The pillar keeps its assigned colour, but as a 5px square rather than a
+   filled lozenge — the colour still identifies the pillar, without a block of
+   saturated fill sitting under every image. */
+.pilastro-chip > span:first-child,
+.tag-chip > span:first-child {
+  border-radius: 0 !important;
+  width: 5px !important;
+  height: 5px !important;
+  opacity: 1 !important;
+}
+
+/* The metadata strip carries three items — status, pillar, format — in a
+   230px cell. Set in caps they no longer fit and every one truncated to
+   "PESCATO DEL / FOTO SIN". Format is dropped here rather than shrunk: a
+   carousel or reel already announces itself with a corner tag, and "foto
+   singola" is the default case, so the label was earning nothing. Pillar is
+   the one that genuinely changes how a frame is judged, so it keeps the room.
+   Format remains visible in the editor and the card view. */
+.cell-tags-bar .pilastro-chip { max-width: none; }
+
+/* With the strip down to two items the status badge can hold its full label
+   instead of ellipsising ("DA REVISI…"). */
+.feed-cell-stato-btn { max-width: 104px !important; }
+
+/* "Caption" set above every caption in a grid of twelve captions is a label
+   telling you what a caption is. The text is self-evidently the caption. */
+.copy-label,
+.client-copy-lbl { display: none !important; }
+
+.cell-caption,
+.feed-cell-caption,
+.client-copy {
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--text-2);
+}
+
+/* Captions were being cut mid-line by a fixed-height container, which reads
+   as a rendering fault rather than as truncation. Clamped to two whole lines
+   with an ellipsis; the full text is in the editor. */
+.client-copy,
+.cell-caption {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Carousel/reel marker: a squared tag in the corner, brand-coloured, because
+   format genuinely changes how the frame should be judged. */
+.cell-type-badge,
+.feed-type-badge {
+  border-radius: 0 !important;
+  font-size: var(--micro) !important;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+/* ═══ 10 · SECONDARY BARS ═════════════════════════════════════════════════ */
+
+.feed-ctx-bar,
+.subtopbar,
+.studio-main > .content-bar {
+  background: var(--bg) !important;
+  border-bottom: 1px solid var(--rule) !important;
+}
+
+.sidebar {
+  background: var(--bg) !important;
+  border-right: 1px solid var(--rule) !important;
+}
+
+/* ═══ 11 · SURFACES THAT MUST FLOAT ═══════════════════════════════════════
+   Modals, popovers and menus are the one place elevation is real — they sit
+   above the page and need to be readable over it. They get a fill, a hard
+   border and a heavy scrim, but still no radius. */
+
+.modal-box,
+.modal,
+.dropdown,
+.popover,
+.feed-upload-popover,
+.user-switcher,
+.cal-day-panel {
+  border-radius: 0 !important;
+  background: var(--surface-hi) !important;
+  border: 1px solid var(--rule-strong) !important;
+  box-shadow: var(--shadow-xl) !important;
+}
+
+.modal-bg,
+.modal-overlay {
+  background: rgba(0, 0, 0, .78) !important;
+  backdrop-filter: blur(3px);
+}
+
+.modal-top {
+  border-bottom: 1px solid var(--rule) !important;
+  padding-bottom: 14px;
+}
+.modal-top h3 {
+  font-family: var(--font-display);
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: var(--ls-tight);
+}
+
+/* ═══ 12 · FORMS ══════════════════════════════════════════════════════════ */
+
+input[type="text"], input[type="number"], input[type="date"],
+input[type="email"], input[type="password"], select, textarea {
+  border-radius: 0 !important;
+  background: var(--bg) !important;
+  border: 1px solid var(--rule) !important;
+  color: var(--text) !important;
+  font-family: var(--font);
+  font-size: 13px;
+  padding: 9px 11px;
+  transition: border-color var(--t-fast);
+}
+input:focus, select:focus, textarea:focus {
+  border-color: var(--brand) !important;
+  outline: none;
+}
+::placeholder { color: var(--placeholder); }
+
+/* The base sheet removes focus rings in places. Keyboard users need them more
+   on a design this low-contrast, not less. */
+:focus-visible {
+  outline: 2px solid var(--brand) !important;
+  outline-offset: 1px;
+  border-radius: 0;
+}
+
+/* ═══ 13 · CALENDAR ═══════════════════════════════════════════════════════
+   A grid ruled like a printed planner: hairlines throughout, day numbers in
+   the display face, today marked by a yellow square rather than a fill. */
+
+.cal-cell, .cal-day, .cal-grid > * {
+  border-radius: 0 !important;
+}
+.cal-day-num {
+  font-family: var(--font-display);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -.02em;
+}
+.cal-today .cal-day-num,
+.cal-day.today .cal-day-num {
+  color: var(--brand) !important;
+  font-weight: 700;
+}
+
+/* ═══ 14 · SAVE BAR ═══════════════════════════════════════════════════════
+   Was a floating rounded island bottom-right. Squared, hairlined, pinned to
+   the corner so it reads as part of the page furniture. */
+
+.save-bar {
+  border-radius: 0 !important;
+  background: var(--surface-hi) !important;
+  border: 1px solid var(--rule-strong) !important;
+  box-shadow: none !important;
+  padding: 8px 10px !important;
+  gap: 8px;
+}
+.save-bar-label { display: none; }
+
+.cloud-badge {
+  border-radius: 0 !important;
+  border: 1px solid var(--rule) !important;
+  font-size: var(--micro) !important;
+  letter-spacing: var(--micro-track);
+  text-transform: uppercase;
+  padding: 4px 9px !important;
+  color: var(--text-3) !important;
+}
+.cloud-badge[data-state="saving"] { color: var(--brand) !important; border-color: var(--brand) !important; }
+.cloud-badge[data-state="error"]  { color: var(--danger-text) !important; border-color: var(--danger-border) !important; }
+
+/* ═══ 15 · TOASTS ═════════════════════════════════════════════════════════ */
+
+.toast {
+  border-radius: 0 !important;
+  background: var(--brand) !important;
+  color: var(--brand-on) !important;
+  font-size: 11px !important;
+  font-weight: 700;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  box-shadow: none !important;
+  border: 0 !important;
+}
+
+/* ═══ 16 · THEME TOGGLE ═══════════════════════════════════════════════════ */
+
+#theme-toggle {
+  border-radius: 0 !important;
+  border: 1px solid var(--rule) !important;
+  width: 32px !important;
+  height: 32px !important;
+  color: var(--text-3);
+  font-size: 13px !important;
+}
+#theme-toggle:hover { border-color: var(--rule-strong) !important; color: var(--text); }
+
+/* ═══ 17 · LIGHT THEME ════════════════════════════════════════════════════
+   The direction is drawn for black, but light has to hold the same posture —
+   rules and ink, not cards. Only the values that encode "dark ground" flip;
+   the geometry and typography above are shared. */
+
+[data-theme="light"] {
+  --rule:        #e2e2e2;
+  --rule-strong: #c4c4c4;
+  --surface:     var(--bg);
+  --surface-lt:  #f6f6f6;
+  --surface-hi:  #ffffff;
+  --border:      var(--rule);
+  --border-lt:   #efefef;
+}
+[data-theme="light"] .feed-cell-stato-btn {
+  background: rgba(255, 255, 255, .9) !important;
+  color: var(--text-2) !important;
+}
+[data-theme="light"] .modal-bg { background: rgba(16, 16, 16, .5) !important; }
+
+/* ═══ 18 · MOTION ═════════════════════════════════════════════════════════
+   The design barely moves by design — state changes are colour and rule, both
+   cheap to animate and both meaningful. Honour the system preference anyway. */
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    transition-duration: .01ms !important;
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}
+
+/* ═══ 19 · NARROW VIEWPORTS ═══════════════════════════════════════════════ */
+
+@media (max-width: 900px) {
+  .kpi-grid { grid-template-columns: repeat(2, 1fr) !important; }
+  .kpi-card:nth-child(2) { border-right: 0 !important; }
+  .kpi-card:nth-child(-n+2) { border-bottom: 1px solid var(--rule) !important; }
+  .kpi-val, .kpi-inp { font-size: 30px !important; }
+  .topbar-brand { padding: 0 12px; }
+  .tab-btn { padding: 0 11px; }
+  /* Touch: the 32px pointer minimum is not enough for a finger. */
+  .btn { min-height: 44px; }
+}

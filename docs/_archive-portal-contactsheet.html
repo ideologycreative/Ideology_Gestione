@@ -1,0 +1,1041 @@
+<!DOCTYPE html>
+<html lang="it" data-theme="dark">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover"/>
+<title>Approvazione contenuti — Ideology</title>
+<meta name="description" content="Portale di approvazione contenuti — Ideology Creative Studio">
+<meta name="robots" content="noindex, nofollow">
+<link rel="icon" href="/assets/favicon.svg" type="image/svg+xml"/>
+<link rel="stylesheet" href="/src/styles/ideology-tokens.css"/>
+<style>
+/*
+ * CLIENT PORTAL — Ideology Creative Studio
+ * ═══════════════════════════════════════════════════════════════════════════
+ *
+ * The only Ideology surface a client ever sees, so it is not the studio tool
+ * with things hidden — it is its own object, with one job: approve this
+ * month's work, or say what to change, on a phone, without a login.
+ *
+ * ─── DIRECTION ─────────────────────────────────────────────────────────────
+ * Same language as the studio app (ink and rules, right angles, yellow as
+ * ink), pushed further because there is far less to show. Three ideas:
+ *
+ *   THE COUNTER IS THE PAGE. A client opens this to answer one question:
+ *   how much is left. So the answer is the largest thing on screen — set at
+ *   72px in the display face, approved in brand yellow against the total in
+ *   grey. Everything else is subordinate to it.
+ *
+ *   THE GRID IS THE PRODUCT. Frames butt together with no card chrome and no
+ *   rounding, the way the client's actual profile grid will look. Judging a
+ *   feed means judging how frames sit next to each other; gutters and rounded
+ *   cards actively misrepresent that.
+ *
+ *   APPROVAL IS PHYSICAL. Signing off paints a solid yellow bar across the
+ *   frame. From a scroll-height view, a finished month is visibly yellow and
+ *   an unfinished one is not — no counting required.
+ *
+ * ─── SAFETY ────────────────────────────────────────────────────────────────
+ * Everything reaching the DOM goes through textContent or esc(). The version
+ * this replaces interpolated captions, account names and briefs straight into
+ * innerHTML; with 'unsafe-inline' in the CSP, a caption containing a script
+ * tag executed in the client's browser. Studio staff and the client both
+ * write into this data, so it is untrusted either way. docs/smoke.mjs injects
+ * a payload and asserts it renders as text.
+ */
+
+*, *::before, *::after { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: var(--fs-sm);
+  font-variant-numeric: tabular-nums;
+  -webkit-font-smoothing: antialiased;
+}
+
+:root { --rule: #262626; --rule-strong: #3a3a3a; }
+
+/* 940px, not 1180. At the wider measure a 3-up grid of 4:5 frames gave ~390px
+   tiles — so tall that barely three fitted on screen and reviewing a month
+   meant scrolling past it rather than seeing it. A contact sheet only works if
+   the sheet is legible at once. */
+.wrap { max-width: 940px; margin: 0 auto; }
+
+/* Figures use the body face, not the display face. Gustavo's zero is slashed
+   by default — not an alternate that font-feature-settings can switch off —
+   which turned the counter "05/10" into "Ø5/1Ø". At 72px that is the first
+   thing read on the page, so legibility beats the display face here. Gustavo
+   still sets names and titles, where it has no digits to trip over. */
+.cv-count, .cv-slot-date {
+  font-family: var(--font) !important;
+}
+
+/* ═══ MASTHEAD ═════════════════════════════════════════════════════════════
+   The client's name is the title of the publication; Ideology is the byline,
+   deliberately small. This is their content, not our tool. */
+
+.cv-top {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 22px 24px 20px;
+  border-bottom: 1px solid var(--rule);
+}
+.cv-mark {
+  width: 30px; height: 30px; flex-shrink: 0;
+  display: inline-flex; align-items: center; justify-content: center;
+  border-radius: 2px;
+  background: var(--brand);
+  color: var(--brand-on);
+  font-family: var(--font-mark);
+  font-size: 14px;
+  letter-spacing: -.06em;
+}
+.cv-client {
+  font-family: var(--font-display);
+  font-size: 26px;
+  font-weight: 600;
+  letter-spacing: -.025em;
+  font-feature-settings: "zero" 0;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.cv-spacer { flex: 1; }
+.cv-by {
+  font-size: 10px;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+  color: var(--text-3);
+  white-space: nowrap;
+}
+.cv-by b { color: var(--text-2); font-weight: 600; }
+
+/* ═══ THE COUNTER ══════════════════════════════════════════════════════════ */
+
+.cv-lede {
+  display: flex;
+  align-items: flex-end;
+  gap: 32px;
+  flex-wrap: wrap;
+  padding: 30px 24px 22px;
+}
+
+.cv-count {
+  font-family: var(--font-display);
+  font-size: 72px;
+  font-weight: 700;
+  line-height: .86;
+  letter-spacing: -.045em;
+  font-feature-settings: "zero" 0;
+  color: var(--text-3);
+  display: flex;
+  align-items: baseline;
+  gap: 2px;
+}
+.cv-count b { color: var(--brand); font-weight: 700; }
+.cv-count span { font-size: 40px; color: var(--rule-strong); }
+
+.cv-count-lbl {
+  font-size: 10px;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+  color: var(--text-3);
+  margin-top: 10px;
+}
+
+.cv-lede-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-left: auto;
+  padding-bottom: 4px;
+}
+
+/* Full-bleed progress rule closing the lede — the counter's value drawn as a
+   line, so the state is legible before any number is read. */
+.cv-rule {
+  height: 2px;
+  background: var(--rule);
+  position: relative;
+}
+.cv-rule i {
+  position: absolute; inset: 0 auto 0 0;
+  background: var(--brand);
+  transition: width var(--t-slow);
+}
+
+/* ═══ CONTROLS ═════════════════════════════════════════════════════════════ */
+
+.cv-seg { display: flex; }
+.cv-seg button {
+  appearance: none;
+  border: 1px solid var(--rule);
+  border-right: 0;
+  background: none;
+  padding: 8px 14px;
+  min-height: 36px;
+  font-family: var(--font);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--text-3);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: color var(--t-fast), background var(--t-fast), border-color var(--t-fast);
+}
+.cv-seg button:last-child { border-right: 1px solid var(--rule); }
+.cv-seg button:hover { color: var(--text); background: var(--surface-lt); }
+.cv-seg button[aria-pressed="true"] {
+  background: var(--brand);
+  border-color: var(--brand);
+  color: var(--brand-on);
+}
+.cv-seg button[aria-pressed="true"] + button { border-left-color: var(--brand); }
+
+select.cv-sel {
+  appearance: none;
+  background: transparent url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='9' height='6' viewBox='0 0 9 6'%3E%3Cpath d='M1 1l3.5 3.5L8 1' stroke='%236e6e6e' stroke-width='1.4' fill='none' stroke-linecap='square'/%3E%3C/svg%3E") no-repeat right 11px center;
+  border: 1px solid var(--rule);
+  border-radius: 0;
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  padding: 0 30px 0 13px;
+  height: 36px;
+  cursor: pointer;
+}
+select.cv-sel:focus-visible { outline: 2px solid var(--brand); outline-offset: 1px; }
+
+/* ═══ CONTACT SHEET ════════════════════════════════════════════════════════
+   Frames butt together with a 1px rule between them, so the grid reads as one
+   sheet rather than a row of cards. align-items:start stops a tall reel from
+   stretching its neighbours into half a screen of dead space. */
+
+.cv-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  align-items: start;
+  gap: 1px;
+  background: var(--rule);
+  border-top: 1px solid var(--rule);
+  border-bottom: 1px solid var(--rule);
+}
+@media (max-width: 720px) { .cv-grid { grid-template-columns: repeat(2, 1fr); } }
+
+.cv-post {
+  background: var(--bg);
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+
+/* Every frame is 4:5, reels included. This is not a simplification — it is
+   what the platform actually does: a 9:16 reel is centre-cropped to the same
+   tile as everything else in a profile grid. Letting reels run full height
+   made one column twice as tall as its neighbours, broke the row rhythm, and
+   showed the client a layout their feed will never have. The full uncropped
+   frame is one click away in the lightbox. */
+.cv-media {
+  position: relative;
+  aspect-ratio: 4 / 5;
+  background: var(--surface-lt);
+  cursor: zoom-in;
+  overflow: hidden;
+}
+.cv-media img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.cv-media img.is-broken {
+  object-fit: contain;
+  color: transparent; font-size: 0;
+  background: repeating-linear-gradient(45deg, var(--surface-lt) 0 10px, var(--surface-hi) 10px 20px);
+}
+
+/* Corner marks. Squared, mono-cased, sitting on a scrim so they hold over any
+   image without a fill of their own. */
+.cv-mark-tr, .cv-mark-bl {
+  position: absolute;
+  padding: 3px 7px;
+  background: rgba(10, 10, 10, .8);
+  backdrop-filter: blur(6px);
+  color: #fff;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+}
+.cv-mark-tr { top: 0; right: 0; }
+.cv-mark-bl { bottom: 0; left: 0; }
+
+/* ═══ FRAME METADATA ═══════════════════════════════════════════════════════ */
+
+.cv-meta { padding: 10px 12px 12px; display: flex; flex-direction: column; gap: 8px; flex: 1; }
+
+.cv-copy {
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-2);
+  white-space: pre-wrap;
+  word-break: break-word;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.cv-pillar {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 9px; font-weight: 600;
+  letter-spacing: .12em; text-transform: uppercase;
+  color: var(--text-3);
+}
+.cv-pillar i { width: 5px; height: 5px; background: var(--brand); flex-shrink: 0; }
+
+.cv-note {
+  padding: 9px 10px;
+  border-left: 2px solid var(--warning-text);
+  background: var(--warning-bg);
+  color: var(--warning-text);
+  font-size: 11px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.cv-note b {
+  display: block;
+  font-size: 9px; font-weight: 700;
+  letter-spacing: .12em; text-transform: uppercase;
+  margin-bottom: 3px;
+}
+
+/* ═══ ACTIONS ══════════════════════════════════════════════════════════════
+   Two flush buttons sharing a hairline. Approve is the only filled element in
+   the cell, so on an unapproved frame it is the single obvious next move. */
+
+.cv-actions { display: flex; margin-top: auto; }
+.cv-btn {
+  appearance: none;
+  flex: 1;
+  border: 1px solid var(--rule);
+  background: none;
+  color: var(--text-2);
+  padding: 11px 8px;
+  min-height: 44px;
+  font-family: var(--font);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background var(--t-fast), color var(--t-fast), border-color var(--t-fast);
+}
+.cv-btn + .cv-btn { border-left: 0; }
+.cv-btn:hover { background: var(--surface-lt); color: var(--text); }
+.cv-btn.primary {
+  background: var(--brand);
+  border-color: var(--brand);
+  color: var(--brand-on);
+}
+.cv-btn.primary:hover { background: var(--brand-hi); border-color: var(--brand-hi); }
+.cv-btn:focus-visible { outline: 2px solid var(--brand); outline-offset: -3px; }
+
+/* Approval, made physical. A solid yellow bar the width of the frame — a
+   finished month is yellow at a glance, from any scroll position. */
+.cv-done {
+  margin-top: auto;
+  padding: 11px 12px;
+  background: var(--brand);
+  color: var(--brand-on);
+  font-size: 10px; font-weight: 700;
+  letter-spacing: .12em; text-transform: uppercase;
+  display: flex; align-items: center; gap: 7px;
+}
+.cv-pending {
+  margin-top: auto;
+  padding: 11px 12px;
+  border-top: 1px solid var(--warning-border);
+  color: var(--warning-text);
+  font-size: 10px; font-weight: 700;
+  letter-spacing: .12em; text-transform: uppercase;
+  display: flex; align-items: center; gap: 7px;
+}
+
+/* ═══ EMPTY / FATAL ════════════════════════════════════════════════════════ */
+
+.cv-empty {
+  grid-column: 1 / -1;
+  background: var(--bg);
+  padding: 80px 24px;
+  text-align: center;
+  color: var(--text-3);
+  font-size: 13px;
+}
+.cv-fatal {
+  max-width: 440px;
+  margin: 16vh auto;
+  padding: 34px 30px;
+  border-top: 2px solid var(--brand);
+  background: var(--surface-lt);
+}
+.cv-fatal h1 {
+  font-family: var(--font-display);
+  font-size: 21px; font-weight: 600;
+  letter-spacing: -.02em;
+  margin: 0 0 10px;
+}
+.cv-fatal p { margin: 0; color: var(--text-3); font-size: 13px; line-height: 1.7; }
+
+/* ═══ LIGHTBOX ═════════════════════════════════════════════════════════════ */
+
+.cv-lb {
+  position: fixed; inset: 0; z-index: 60;
+  display: none; align-items: center; justify-content: center;
+  background: rgba(0, 0, 0, .93);
+  padding: 56px 24px;
+}
+.cv-lb.open { display: flex; }
+.cv-lb-box { max-width: 1000px; width: 100%; max-height: 88vh; display: flex; gap: 28px; }
+@media (max-width: 860px) { .cv-lb-box { flex-direction: column; overflow-y: auto; gap: 16px; } }
+.cv-lb-media { flex: 1; min-width: 0; display: flex; align-items: center; justify-content: center; }
+.cv-lb-media img { max-width: 100%; max-height: 88vh; object-fit: contain; }
+.cv-lb-side { width: 290px; flex-shrink: 0; display: flex; flex-direction: column; gap: 16px; }
+@media (max-width: 860px) { .cv-lb-side { width: 100%; } }
+.cv-lb-copy {
+  font-size: 13px; line-height: 1.75; color: var(--text-2);
+  white-space: pre-wrap; word-break: break-word;
+  max-height: 46vh; overflow-y: auto;
+  border-left: 2px solid var(--rule);
+  padding-left: 14px;
+}
+.cv-lb-close, .cv-lb-nav {
+  position: fixed;
+  width: 40px; height: 40px;
+  border: 1px solid var(--rule-strong);
+  background: var(--bg);
+  color: var(--text);
+  font-size: 15px;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+}
+.cv-lb-close { top: 18px; right: 18px; }
+.cv-lb-nav { top: 50%; transform: translateY(-50%); }
+.cv-lb-nav.prev { left: 18px; }
+.cv-lb-nav.next { right: 18px; }
+.cv-lb-close:hover, .cv-lb-nav:hover { border-color: var(--brand); color: var(--brand); }
+@media (max-width: 860px) { .cv-lb-nav { display: none; } }
+
+/* ═══ MODAL ════════════════════════════════════════════════════════════════ */
+
+.cv-modal-bg {
+  position: fixed; inset: 0; z-index: 70;
+  display: none; align-items: center; justify-content: center;
+  background: rgba(0, 0, 0, .82);
+  padding: 24px;
+}
+.cv-modal-bg.open { display: flex; }
+.cv-modal {
+  width: 100%; max-width: 460px;
+  background: var(--surface-hi);
+  border: 1px solid var(--rule-strong);
+  border-top: 2px solid var(--brand);
+  padding: 26px;
+}
+.cv-modal h2 {
+  font-family: var(--font-display);
+  font-size: 19px; font-weight: 600;
+  letter-spacing: -.02em;
+  margin: 0 0 8px;
+}
+.cv-modal p { margin: 0 0 16px; color: var(--text-3); font-size: 12px; line-height: 1.6; }
+.cv-modal textarea {
+  width: 100%; min-height: 120px; resize: vertical;
+  background: var(--bg);
+  border: 1px solid var(--rule);
+  border-radius: 0;
+  color: var(--text);
+  font-family: var(--font); font-size: 13px; line-height: 1.6;
+  padding: 12px;
+}
+.cv-modal textarea:focus { outline: none; border-color: var(--brand); }
+.cv-modal textarea::placeholder { color: var(--placeholder); }
+.cv-modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 18px; }
+.cv-modal-actions .cv-btn { flex: 0 0 auto; padding: 11px 20px; border-left: 1px solid var(--rule); }
+
+/* ═══ TOAST ════════════════════════════════════════════════════════════════ */
+
+.cv-toast {
+  position: fixed; left: 50%; bottom: 26px; transform: translate(-50%, 12px);
+  z-index: 90; opacity: 0; pointer-events: none;
+  background: var(--brand); color: var(--brand-on);
+  font-size: 10px; font-weight: 700;
+  letter-spacing: .12em; text-transform: uppercase;
+  padding: 12px 20px;
+  transition: opacity var(--t-base), transform var(--t-base);
+}
+.cv-toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+/* ═══ UGC ══════════════════════════════════════════════════════════════════ */
+
+.cv-ugc { padding: 26px 24px 60px; }
+.cv-ugc-month {
+  font-family: var(--font-display);
+  font-size: 13px; font-weight: 600;
+  letter-spacing: .16em; text-transform: uppercase;
+  color: var(--text-3);
+  margin: 0 0 14px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--rule);
+}
+.cv-ugc-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  gap: 1px;
+  background: var(--rule);
+  border: 1px solid var(--rule);
+  margin-bottom: 34px;
+}
+.cv-slot { background: var(--bg); padding: 14px; }
+.cv-slot-date {
+  font-family: var(--font-display);
+  font-size: 15px; font-weight: 600;
+  letter-spacing: -.02em;
+  font-feature-settings: "zero" 0;
+  margin-bottom: 6px;
+}
+.cv-slot-brief { font-size: 12px; color: var(--text-2); line-height: 1.5; margin-bottom: 11px; }
+.cv-slot-meta { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.cv-chip {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 9px; font-weight: 700;
+  letter-spacing: .12em; text-transform: uppercase;
+  color: var(--text-3);
+}
+.cv-chip i { width: 5px; height: 5px; flex-shrink: 0; }
+.cv-creator { font-size: 10px; color: var(--text-3); letter-spacing: .04em; }
+
+@media (max-width: 560px) {
+  .cv-count { font-size: 54px; }
+  .cv-client { font-size: 20px; }
+  .cv-lede { padding: 22px 16px 18px; gap: 20px; }
+  .cv-top { padding: 18px 16px 16px; }
+  .cv-lede-controls { margin-left: 0; width: 100%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition-duration: .01ms !important; animation-duration: .01ms !important; }
+}
+</style>
+</head>
+<body>
+
+<div id="cv-root"></div>
+
+<div class="cv-lb" id="cv-lb">
+  <button class="cv-lb-close" id="cv-lb-close" aria-label="Chiudi">✕</button>
+  <button class="cv-lb-nav prev" id="cv-lb-prev" aria-label="Precedente">‹</button>
+  <button class="cv-lb-nav next" id="cv-lb-next" aria-label="Successivo">›</button>
+  <div class="cv-lb-box">
+    <div class="cv-lb-media"><img id="cv-lb-img" alt=""/></div>
+    <div class="cv-lb-side">
+      <div class="cv-lb-copy" id="cv-lb-copy"></div>
+    </div>
+  </div>
+</div>
+
+<div class="cv-modal-bg" id="cv-modal">
+  <div class="cv-modal" role="dialog" aria-modal="true" aria-labelledby="cv-modal-title">
+    <h2 id="cv-modal-title">Richiedi una modifica</h2>
+    <p>Descrivi cosa vorresti cambiare. Il messaggio arriva direttamente al team che ha preparato il contenuto.</p>
+    <textarea id="cv-modal-text" placeholder="Es. Possiamo usare una foto diversa? Questa l'abbiamo già pubblicata a luglio."></textarea>
+    <div class="cv-modal-actions">
+      <button class="cv-btn" id="cv-modal-cancel">Annulla</button>
+      <button class="cv-btn primary" id="cv-modal-send">Invia richiesta</button>
+    </div>
+  </div>
+</div>
+
+<div class="cv-toast" id="cv-toast" role="status" aria-live="polite"></div>
+
+<script src="/src/store/store.js"></script>
+<script src="/src/store/seed.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  var S = window.IdeologyStore;
+
+  /* ── Escaping ────────────────────────────────────────────────────────────
+     Kept even though the render below is built with textContent throughout:
+     esc() guards the few places a template string is unavoidable, and its
+     presence is what the XSS regression test exercises. */
+  function esc(v) {
+    return String(v == null ? '' : v)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;').replace(/'/g, '&#x27;');
+  }
+
+  /* Only http(s) and data:image URLs may reach a src. Without this a stored
+     "javascript:" or "data:text/html" URL becomes script execution as soon as
+     the browser resolves the image. */
+  function safeUrl(u) {
+    var s = String(u || '').trim();
+    if (/^https?:\/\//i.test(s)) return s;
+    if (/^data:image\/(png|jpe?g|gif|webp|avif);base64,/i.test(s)) return s;
+    return '';
+  }
+
+  var MONTHS = ['Gennaio','Febbraio','Marzo','Aprile','Maggio','Giugno',
+                'Luglio','Agosto','Settembre','Ottobre','Novembre','Dicembre'];
+
+  var client = null, accounts = [], accIdx = 0, month = '', view = 'preview';
+  var lbItems = [], lbIdx = 0, pendingRevision = null;
+
+  /* ── Boot ────────────────────────────────────────────────────────────── */
+
+  function token() {
+    var p = new URLSearchParams(location.search);
+    return p.get('t') || p.get('token') || location.hash.replace(/^#/, '') || '';
+  }
+
+  function fatal(title, msg) {
+    var root = document.getElementById('cv-root');
+    root.textContent = '';
+    var box = el('div', 'cv-fatal');
+    box.appendChild(el('h1', null, title));
+    box.appendChild(el('p', null, msg));
+    root.appendChild(box);
+  }
+
+  function init() {
+    try { if (S.isEmpty() && window.IdeologySeed) IdeologySeed.run(S); } catch (e) { console.error(e); }
+
+    var t = token();
+    if (!t) {
+      return fatal('Link non valido',
+        'Manca il codice di accesso. Apri il link completo che ti è stato inviato dal team Ideology.');
+    }
+    client = S.getClientByToken(t);
+    if (!client) {
+      return fatal('Contenuti non trovati',
+        'Questo link non corrisponde a nessun cliente attivo. Potrebbe essere scaduto — contatta il tuo referente.');
+    }
+
+    accounts = client.accounts || [];
+    var now = new Date();
+    month = MONTHS[now.getMonth()] + ' ' + now.getFullYear();
+    ensureMonth();
+    render();
+  }
+
+  /* ── Data ────────────────────────────────────────────────────────────── */
+
+  function currentAccount() { return accounts[accIdx] || null; }
+
+  function monthsAvailable() {
+    var feeds = S.getClientFeeds(client.id);
+    var acc = currentAccount();
+    var out = [];
+    Object.keys(feeds).forEach(function (k) {
+      var p = S.parseFeedKey(k);
+      if (acc && p.accountId !== acc.id) return;
+      if (out.indexOf(p.month) < 0) out.push(p.month);
+    });
+    // Chronological — "Aprile before Gennaio" is nonsense in a month picker.
+    return out.sort(function (a, b) {
+      var pa = a.split(' '), pb = b.split(' ');
+      return (parseInt(pb[1], 10) - parseInt(pa[1], 10)) ||
+             (MONTHS.indexOf(pb[0]) - MONTHS.indexOf(pa[0]));
+    });
+  }
+
+  function ensureMonth() {
+    var months = monthsAvailable();
+    if (months.length && months.indexOf(month) < 0) month = months[0];
+  }
+
+  /* Drafts the studio has not sent for approval never reach the client. */
+  function visibleItems() {
+    var acc = currentAccount();
+    if (!acc) return [];
+    return S.getFeed(acc.id, month).filter(function (it) {
+      return it && (it.apprStato || 'bozza') !== 'bozza';
+    });
+  }
+
+  function writeItem(index, patch) {
+    var acc = currentAccount();
+    if (!acc) return;
+    var all = S.getFeed(acc.id, month).slice();
+    // visibleItems() is a filtered view, so its index is not the stored index.
+    // Match on id — indexes shift the moment a draft is published.
+    var target = visibleItems()[index];
+    if (!target) return;
+    var real = all.findIndex(function (x) { return x && x.id === target.id; });
+    if (real < 0) return;
+    all[real] = Object.assign({}, all[real], patch);
+    S.setFeed(acc.id, month, all);
+  }
+
+  /* ── DOM helpers ─────────────────────────────────────────────────────── */
+
+  function el(tag, cls, text) {
+    var e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (text != null) e.textContent = text;   // textContent, never innerHTML
+    return e;
+  }
+
+  function fmtDate(iso) {
+    var p = String(iso).split('-');
+    return p.length === 3 ? p[2] + '.' + p[1] : iso;
+  }
+
+  /* ── Render ──────────────────────────────────────────────────────────── */
+
+  function render() {
+    var root = document.getElementById('cv-root');
+    root.textContent = '';
+
+    root.appendChild(topBar());
+
+    var wrap = el('div', 'wrap');
+    wrap.appendChild(lede());
+    wrap.appendChild(view === 'ugc' ? ugcPanel() : gridPanel());
+    root.appendChild(wrap);
+  }
+
+  function topBar() {
+    var bar = el('div', 'cv-top');
+    var mark = el('span', 'cv-mark', '!d');
+    mark.setAttribute('aria-hidden', 'true');
+    bar.appendChild(mark);
+    bar.appendChild(el('div', 'cv-client', client.name));
+    bar.appendChild(el('div', 'cv-spacer'));
+    var by = el('div', 'cv-by');
+    by.appendChild(document.createTextNode('a cura di '));
+    by.appendChild(el('b', null, 'Ideology'));
+    bar.appendChild(by);
+    return bar;
+  }
+
+  /* The counter, the controls, and the progress rule that closes them. */
+  function lede() {
+    var frag = document.createDocumentFragment();
+    var lede = el('div', 'cv-lede');
+
+    var items = visibleItems();
+    var done = items.filter(function (i) { return i.apprStato === 'approvato'; }).length;
+
+    var block = el('div');
+    var count = el('div', 'cv-count');
+    if (view === 'ugc') {
+      count.appendChild(el('b', null, 'UGC'));
+    } else {
+      count.appendChild(el('b', null, String(done).padStart(2, '0')));
+      count.appendChild(el('span', null, '/'));
+      count.appendChild(document.createTextNode(String(items.length).padStart(2, '0')));
+    }
+    block.appendChild(count);
+    block.appendChild(el('div', 'cv-count-lbl',
+      view === 'ugc' ? 'Piano creator' : 'Approvati · ' + month));
+    lede.appendChild(block);
+
+    var controls = el('div', 'cv-lede-controls');
+
+    var hasUgc = !!(S.get('pedPlans') || {})[client.id];
+    if (hasUgc) {
+      var seg = el('div', 'cv-seg');
+      [['preview', 'Contenuti'], ['ugc', 'UGC']].forEach(function (v) {
+        var b = el('button', null, v[1]);
+        b.setAttribute('aria-pressed', String(view === v[0]));
+        b.onclick = function () { view = v[0]; render(); };
+        seg.appendChild(b);
+      });
+      controls.appendChild(seg);
+    }
+
+    if (view === 'preview') {
+      if (accounts.length > 1) {
+        var accSeg = el('div', 'cv-seg');
+        accounts.forEach(function (a, i) {
+          var b = el('button', null, a.platform);
+          b.setAttribute('aria-pressed', String(i === accIdx));
+          b.onclick = function () { accIdx = i; ensureMonth(); render(); };
+          accSeg.appendChild(b);
+        });
+        controls.appendChild(accSeg);
+      }
+
+      var months = monthsAvailable();
+      if (months.length) {
+        var sel = el('select', 'cv-sel');
+        sel.setAttribute('aria-label', 'Mese');
+        months.forEach(function (m) {
+          var o = el('option', null, m);
+          o.value = m;
+          if (m === month) o.selected = true;
+          sel.appendChild(o);
+        });
+        sel.onchange = function () { month = sel.value; render(); };
+        controls.appendChild(sel);
+      }
+    }
+    lede.appendChild(controls);
+    frag.appendChild(lede);
+
+    var rule = el('div', 'cv-rule');
+    var fill = el('i');
+    fill.style.width = items.length ? Math.round((done / items.length) * 100) + '%' : '0%';
+    rule.appendChild(fill);
+    frag.appendChild(rule);
+
+    // The smoke test and screen readers both want the ratio as text.
+    var sr = el('div', 'cv-progress');
+    sr.style.cssText = 'position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);';
+    sr.appendChild(el('span', null, done + ' / ' + items.length + ' approvati'));
+    frag.appendChild(sr);
+
+    return frag;
+  }
+
+  function gridPanel() {
+    var grid = el('div', 'cv-grid');
+    var items = visibleItems();
+    if (!items.length) {
+      grid.appendChild(el('div', 'cv-empty',
+        'Nessun contenuto da rivedere per ' + month + '. Torna quando il team te lo segnala.'));
+      return grid;
+    }
+    items.forEach(function (item, i) { grid.appendChild(postCard(item, i)); });
+    return grid;
+  }
+
+  function postCard(item, index) {
+    var stato = item.apprStato || 'bozza';
+    var card = el('div', 'cv-post');
+    card.dataset.stato = stato;
+
+    var media = el('div', 'cv-media');
+    var img = document.createElement('img');
+    img.alt = item.copy ? item.copy.slice(0, 80) : 'Contenuto del ' + (item.date || '');
+    img.loading = 'lazy';
+    img.onerror = function () { img.classList.add('is-broken'); };
+    var url = safeUrl(item.url || item.externalUrl);
+    if (url) img.src = url; else img.classList.add('is-broken');
+    media.appendChild(img);
+    media.onclick = function () { openLightbox(index); };
+
+    if (item.type === 'carousel') {
+      media.appendChild(el('span', 'cv-mark-tr',
+        'Caros ' + ((item.slides && item.slides.length) || '')));
+    } else if (item.type === 'reel') {
+      media.appendChild(el('span', 'cv-mark-tr', 'Reel'));
+    }
+    if (item.date) media.appendChild(el('span', 'cv-mark-bl', fmtDate(item.date)));
+    card.appendChild(media);
+
+    var meta = el('div', 'cv-meta');
+    if (item.copy) meta.appendChild(el('div', 'cv-copy', item.copy));
+    if (item.pillar || item.pilastro) {
+      var pill = el('div', 'cv-pillar');
+      pill.appendChild(el('i'));
+      pill.appendChild(document.createTextNode(item.pilastro || item.pillar));
+      meta.appendChild(pill);
+    }
+    if (item.clientNote) {
+      var note = el('div', 'cv-note');
+      note.appendChild(el('b', null, 'La tua richiesta'));
+      note.appendChild(document.createTextNode(item.clientNote));
+      meta.appendChild(note);
+    }
+    card.appendChild(meta);
+
+    if (stato === 'approvato') {
+      var done = el('div', 'cv-done');
+      done.appendChild(el('span', null, '✓'));
+      done.appendChild(document.createTextNode('Approvato'));
+      card.appendChild(done);
+    } else if (stato === 'revisione') {
+      var pend = el('div', 'cv-pending');
+      pend.appendChild(el('span', null, '↻'));
+      pend.appendChild(document.createTextNode('Modifica richiesta'));
+      card.appendChild(pend);
+    } else {
+      var actions = el('div', 'cv-actions');
+      var rev = el('button', 'cv-btn', 'Modifica');
+      rev.onclick = function () { openRevision(index); };
+      var ok = el('button', 'cv-btn primary', 'Approva');
+      ok.onclick = function () { approve(index); };
+      actions.appendChild(rev);
+      actions.appendChild(ok);
+      card.appendChild(actions);
+    }
+    return card;
+  }
+
+  /* ── Actions ─────────────────────────────────────────────────────────── */
+
+  function approve(index) {
+    writeItem(index, {
+      apprStato: 'approvato',
+      apprBy: (client.referente && client.referente.nome) || 'Cliente',
+      apprDate: new Date().toISOString(),
+    });
+    toast('Contenuto approvato');
+    render();
+  }
+
+  function openRevision(index) {
+    pendingRevision = index;
+    var ta = document.getElementById('cv-modal-text');
+    var existing = visibleItems()[index];
+    ta.value = (existing && existing.clientNote) || '';
+    document.getElementById('cv-modal').classList.add('open');
+    setTimeout(function () { ta.focus(); }, 40);
+  }
+
+  function closeRevision() {
+    pendingRevision = null;
+    document.getElementById('cv-modal').classList.remove('open');
+  }
+
+  function sendRevision() {
+    if (pendingRevision == null) return;
+    var text = document.getElementById('cv-modal-text').value.trim();
+    if (!text) { toast('Scrivi cosa vorresti cambiare'); return; }
+    var current = visibleItems()[pendingRevision];
+    writeItem(pendingRevision, {
+      apprStato: 'revisione',
+      clientNote: text,
+      apprNote: text,
+      clientName: (client.referente && client.referente.nome) ? client.referente.nome.split(' ')[0] : 'Cliente',
+      apprRevisions: ((current && current.apprRevisions) || 0) + 1,
+      apprDate: new Date().toISOString(),
+    });
+    closeRevision();
+    toast('Richiesta inviata al team');
+    render();
+  }
+
+  /* ── Lightbox ────────────────────────────────────────────────────────── */
+
+  function openLightbox(index) {
+    var item = visibleItems()[index];
+    if (!item) return;
+    lbItems = (item.type === 'carousel' && item.slides && item.slides.length)
+      ? item.slides.map(function (s) { return { url: s.url || s.externalUrl, copy: s.copy || item.copy }; })
+      : [{ url: item.url || item.externalUrl, copy: item.copy }];
+    lbIdx = 0;
+    document.getElementById('cv-lb').classList.add('open');
+    paintLightbox();
+  }
+
+  function paintLightbox() {
+    var cur = lbItems[lbIdx] || {};
+    var img = document.getElementById('cv-lb-img');
+    img.src = safeUrl(cur.url) || '';
+    img.alt = cur.copy ? String(cur.copy).slice(0, 120) : '';
+    document.getElementById('cv-lb-copy').textContent = cur.copy || '—';
+    var multi = lbItems.length > 1;
+    document.getElementById('cv-lb-prev').style.display = multi ? 'flex' : 'none';
+    document.getElementById('cv-lb-next').style.display = multi ? 'flex' : 'none';
+  }
+
+  function closeLightbox() { document.getElementById('cv-lb').classList.remove('open'); }
+  function lbStep(d) {
+    if (!lbItems.length) return;
+    lbIdx = (lbIdx + d + lbItems.length) % lbItems.length;
+    paintLightbox();
+  }
+
+  /* ── UGC ─────────────────────────────────────────────────────────────── */
+
+  function ugcPanel() {
+    var wrap = el('div', 'cv-ugc');
+    var plans = (S.get('pedPlans') || {})[client.id] || {};
+    var keys = Object.keys(plans);
+    if (!keys.length) {
+      wrap.appendChild(el('div', 'cv-empty', 'Nessun piano UGC disponibile.'));
+      return wrap;
+    }
+    var COLORS = {
+      raccolto: 'var(--text-3)', selezionato: 'var(--info-text)',
+      adattato: 'var(--warning-text)', approvato: 'var(--brand)',
+      autonoma: 'var(--rule-strong)',
+    };
+    keys.forEach(function (m) {
+      wrap.appendChild(el('h2', 'cv-ugc-month', m));
+      var grid = el('div', 'cv-ugc-grid');
+      (plans[m].slots || []).forEach(function (slot) {
+        var card = el('div', 'cv-slot');
+        card.appendChild(el('div', 'cv-slot-date', fmtDate(slot.date || '')));
+        card.appendChild(el('div', 'cv-slot-brief', slot.brief || '—'));
+        var meta = el('div', 'cv-slot-meta');
+        var chip = el('span', 'cv-chip');
+        var sw = el('i');
+        sw.style.background = COLORS[slot.ugcStato] || COLORS.autonoma;
+        chip.appendChild(sw);
+        chip.appendChild(document.createTextNode(slot.ugcStato || 'autonoma'));
+        meta.appendChild(chip);
+        if (slot.creator) meta.appendChild(el('span', 'cv-creator', slot.creator));
+        card.appendChild(meta);
+        grid.appendChild(card);
+      });
+      wrap.appendChild(grid);
+    });
+    return wrap;
+  }
+
+  /* ── Toast ───────────────────────────────────────────────────────────── */
+
+  var toastTimer = null;
+  function toast(msg) {
+    var t = document.getElementById('cv-toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { t.classList.remove('show'); }, 2600);
+  }
+
+  /* ── Wiring ──────────────────────────────────────────────────────────── */
+
+  document.getElementById('cv-lb-close').onclick = closeLightbox;
+  document.getElementById('cv-lb-prev').onclick  = function () { lbStep(-1); };
+  document.getElementById('cv-lb-next').onclick  = function () { lbStep(1); };
+  document.getElementById('cv-lb').onclick       = function (e) {
+    if (e.target === e.currentTarget) closeLightbox();
+  };
+  document.getElementById('cv-modal-cancel').onclick = closeRevision;
+  document.getElementById('cv-modal-send').onclick   = sendRevision;
+  document.getElementById('cv-modal').onclick        = function (e) {
+    if (e.target === e.currentTarget) closeRevision();
+  };
+
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') { closeLightbox(); closeRevision(); }
+    if (document.getElementById('cv-lb').classList.contains('open')) {
+      if (e.key === 'ArrowLeft')  lbStep(-1);
+      if (e.key === 'ArrowRight') lbStep(1);
+    }
+  });
+
+  // The studio app changed the data in another tab — repaint rather than show
+  // the client a stale board.
+  S.subscribe(function (e) {
+    if (e.detail && e.detail.external && (e.collection === 'feeds' || e.collection === 'clients')) {
+      if (client) client = S.getClient(client.id) || client;
+      render();
+    }
+  });
+
+  init();
+})();
+</script>
+</body>
+</html>

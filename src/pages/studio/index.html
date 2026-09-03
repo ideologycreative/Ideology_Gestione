@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="it" data-theme="dark">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover"/>
+<title>Ideology Studio</title>
+<meta name="description" content="Ideology Creative Studio — pianificazione contenuti social">
+<meta name="robots" content="noindex, nofollow">
+<link rel="icon" href="/assets/favicon.svg" type="image/svg+xml"/>
+<link rel="stylesheet" href="/src/styles/ideology-tokens.css"/>
+<link rel="stylesheet" href="/src/styles/monthpicker.css"/>
+<link rel="stylesheet" href="/src/styles/app.css"/>
+</head>
+<body>
+
+<!--
+  The application frame. Sections are rendered into #view by the shell from
+  the hash route, so the document describes furniture only.
+-->
+<div class="app">
+  <nav id="rail" aria-label="Sezioni"></nav>
+  <header id="header"></header>
+  <main id="view" tabindex="-1"></main>
+  <aside id="inspector" aria-label="Dettaglio contenuto"></aside>
+  <footer id="status"></footer>
+</div>
+
+<div id="palette" role="dialog" aria-modal="true" aria-label="Comandi">
+  <div class="pal-box">
+    <input id="pal-input" type="text" placeholder="Cerca cliente, sezione, azione…" autocomplete="off" spellcheck="false"/>
+    <div id="pal-list"></div>
+  </div>
+</div>
+
+<div id="toast" role="status" aria-live="polite"></div>
+
+<script src="/src/store/store.js"></script>
+<script src="/src/store/seed.js"></script>
+<script src="/src/shared/monthpicker.js"></script>
+<script src="/src/app/core.js"></script>
+<script src="/src/app/views.js"></script>
+<script src="/src/app/inspector.js"></script>
+<script src="/src/app/sections.js"></script>
+<script src="/src/app/shell.js"></script>
+</body>
+</html>

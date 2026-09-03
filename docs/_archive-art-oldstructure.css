@@ -1,0 +1,836 @@
+/*
+ * IDEOLOGY STUDIO — art direction : TERMINAL
+ * ═══════════════════════════════════════════════════════════════════════════
+ *
+ * Loaded LAST, after ideology.css. That file is generated from the source
+ * tool and carries component structure; this one carries the identity. The
+ * separation means re-running the extractor can never overwrite the design,
+ * and the design can be replaced wholesale without touching the generator —
+ * which is exactly what happened here. The previous direction is kept at
+ * _archive-contactsheet.css (not loaded) rather than deleted.
+ *
+ * ─── WHY THIS DIRECTION ────────────────────────────────────────────────────
+ * Ideology sells Web3, AI, XR and motion, calls itself "indomabili
+ * avanguardisti", and picked FK Raster Grotesk — a blended raster face — as
+ * its display type. That is a typeface you choose when you want "computed",
+ * "rendered", "synthetic". The identity is already machine-adjacent; this
+ * design follows it rather than inventing a mood beside it.
+ *
+ * It also suits the job. A terminal is dense, high-signal and quiet: chrome
+ * collapses to thin monospaced text, so twelve photographs keep all the
+ * contrast in the room. A louder direction — yellow grounds, poster type —
+ * would look superb in a portfolio and fight the images here, and judging
+ * colour beside a field of acid yellow is not possible.
+ *
+ * ─── THE SYSTEM ────────────────────────────────────────────────────────────
+ *
+ *   1. TWO TYPEFACES, STRICTLY DIVIDED.
+ *      Mono (JetBrains Mono) for everything the MACHINE says: labels, counts,
+ *      dates, indices, status, coordinates. PP Neue Montreal for everything a
+ *      PERSON wrote: captions, notes, briefs. The split is the whole texture —
+ *      and it keeps prose readable, which all-mono would not.
+ *
+ *   2. BRACKETS, NOT BOXES.
+ *      Panels are marked by two corner brackets rather than a full border.
+ *      A terminal frames by implication; it also leaves the images unboxed.
+ *
+ *   3. STATUS IS A TOKEN.
+ *      [OK] [??] [!!] [··] — fixed width, scannable down a column the way a
+ *      log is. The Italian word stays beside it: the token is faster once
+ *      learned, the word means nobody has to learn it first.
+ *
+ *   4. YELLOW IS PHOSPHOR.
+ *      Not paint, not ink — light. It glows faintly, and only on things that
+ *      are live: the active tab, the cursor, the approved state, the primary
+ *      action. Everything else is greyscale.
+ *
+ *   5. THE MACHINE REPORTS ITSELF.
+ *      Section titles are prompts, the save state is a status readout, and
+ *      the active tab carries a blinking block cursor.
+ *
+ * Accessibility is not traded for the aesthetic: prose stays in a humanist
+ * face at ≥12px, every pair here clears 4.5:1, the grain sits at 2.5% and
+ * carries no text, focus rings are strengthened, the cursor blink and all
+ * motion stop under prefers-reduced-motion, and touch targets stay ≥44px.
+ */
+
+/* ═══ 0 · THE MACHINE FACE ════════════════════════════════════════════════
+   JetBrains Mono, SIL OFL, vendored alongside the brand faces so the app
+   still runs with no network. Only data wears it — see rule 1. */
+
+@font-face {
+  font-family: 'Ideology Mono';
+  src: url('/assets/fonts/JetBrainsMono-400.woff2') format('woff2');
+  font-weight: 400;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Ideology Mono';
+  src: url('/assets/fonts/JetBrainsMono-700.woff2') format('woff2');
+  font-weight: 700;
+  font-display: swap;
+}
+
+:root {
+  --mono: 'Ideology Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+  /* Phosphor. The glow is deliberately weak — at higher values yellow text
+     smears on a black ground and stops being readable. */
+  --glow:        0 0 12px rgba(242, 199, 0, .38);
+  --glow-strong: 0 0 18px rgba(242, 199, 0, .55);
+
+  --rule:        #232323;
+  --rule-strong: #383838;
+
+  --track: .14em;   /* mono label tracking */
+
+  /* Right angles — a terminal has no rounded corners either. */
+  --r: 0px; --rs: 0px; --r-xs: 0px; --r-pill: 0px; --bw: 1px;
+
+  --shadow-sm: none;
+  --shadow-md: none;
+  --shadow-lg: 0 24px 64px rgba(0, 0, 0, .85);
+  --shadow-xl: 0 32px 80px rgba(0, 0, 0, .9);
+
+  --border:     var(--rule);
+  --border-lt:  #1a1a1a;
+  --surface:    var(--bg);
+  --surface-lt: #151515;
+  --surface-hi: #1c1c1c;
+}
+
+/* ═══ 1 · SCREEN ══════════════════════════════════════════════════════════
+   A whole-viewport scanline wash at 2.5%, plus a soft vignette. Enough to
+   read as a display surface, far too faint to interfere with the images or
+   the type. pointer-events:none so it never eats a click. */
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  pointer-events: none;
+  background:
+    repeating-linear-gradient(
+      to bottom,
+      rgba(255, 255, 255, .025) 0px,
+      rgba(255, 255, 255, .025) 1px,
+      transparent 1px,
+      transparent 3px
+    ),
+    radial-gradient(ellipse at 50% 40%, transparent 55%, rgba(0, 0, 0, .35) 100%);
+}
+
+body { font-variant-numeric: tabular-nums; }
+
+
+/* JetBrains Mono ships a dotted zero as its default figure. At the 9-10px this
+   design uses for dates and counts the dot fills in and "19.09" reads as
+   "19.89" — a date being misread is not an acceptable price for a stylistic
+   zero. Unlike Gustavo's slashed zero this one IS an addressable feature, so
+   it is simply switched off wherever the mono face is used. */
+
+body,
+.m, .tab-btn, .btn, .kpi-val, .kpi-label, .kpi-sub, .cloud-badge,
+.feed-cell-stato-btn, .table-wrap td, .table-wrap th, .cal-day-num,
+.content-title, .subtopbar-name, .brand-name, .pkg-badge,
+.feed-chip, .month-pill, .acc-btn, .appr-filter-chip, .toast,
+.cv-count, .cv-bar, .cv-manifest, .cv-mark-bl, .cv-mark-tr, .cv-slot-date {
+  font-feature-settings: "zero" 0;
+}
+
+/* ═══ 2 · MACHINE TEXT ════════════════════════════════════════════════════
+   Everything the system says. Uppercase, tracked, monospaced. */
+
+.content-tag,
+.kpi-label,
+.kpi-sub,
+.table-wrap th,
+.sb-group-lbl,
+.field > label,
+.subtopbar-pkg,
+.tab-btn,
+.btn,
+.cloud-badge,
+.feed-cell-stato-btn,
+.pkg-badge,
+.feed-chip,
+.appr-filter-chip,
+.month-pill,
+.acc-btn,
+.toast,
+.micro {
+  font-family: var(--mono) !important;
+  letter-spacing: var(--track);
+  text-transform: uppercase;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Figures are machine output too — counts, money, hours, dates. */
+.kpi-val,
+.kpi-card .kpi-inp,
+.kpi-card input.kpi-inp,
+.cal-day-num,
+.table-wrap td {
+  font-family: var(--mono) !important;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ...but PROSE is not. Captions and notes are what a person wrote, and a
+   paragraph of monospace is slower to read and looks like a config file. */
+.client-copy,
+.cell-caption,
+.feed-cell-caption,
+textarea,
+.note-body {
+  font-family: var(--font) !important;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+/* ═══ 3 · MASTHEAD ════════════════════════════════════════════════════════
+   A command line: wordmark, then the current path, then the tabs. */
+
+.topbar {
+  height: 56px;
+  background: var(--bg) !important;
+  border-bottom: 1px solid var(--rule) !important;
+  padding-left: 0;
+  backdrop-filter: none;
+}
+
+.topbar-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 100%;
+  padding: 0 16px;
+  border-right: 1px solid var(--rule);
+  flex-shrink: 0;
+}
+
+.brand-mark {
+  width: 26px; height: 26px;
+  border-radius: 0;
+  background: var(--brand);
+  color: var(--brand-on);
+  font-family: var(--font-mark);
+  font-size: 13px;
+  letter-spacing: -.06em;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: var(--glow);
+}
+
+.brand-name {
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: .18em;
+  text-transform: uppercase;
+  color: var(--text);
+}
+
+/* The client block reads as a path segment: / MAREFUORI PROFESSIONAL */
+.topbar-client-section { gap: 0 !important; height: 100%; }
+
+.subtopbar-client {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 100%;
+  padding: 0 16px;
+  border-right: 1px solid var(--rule);
+  cursor: pointer;
+  transition: background var(--t-fast);
+}
+.subtopbar-client:hover { background: var(--surface-lt); }
+.subtopbar-client::before {
+  content: "/";
+  font-family: var(--mono);
+  font-size: 13px;
+  color: var(--rule-strong);
+}
+
+.subtopbar-name {
+  font-family: var(--mono);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--text);
+}
+.subtopbar-pkg { font-size: 9px !important; color: var(--text-3); }
+.subtopbar-back { display: none; }
+
+/* ═══ 4 · TABS ════════════════════════════════════════════════════════════
+   The active tab glows and carries a block cursor — the one animated thing
+   in the interface, and the clearest possible "you are here". */
+
+.tab-nav { height: 100%; padding: 0 6px; gap: 0; }
+
+.tab-btn {
+  position: relative;
+  height: 100%;
+  margin: 0;
+  padding: 0 15px;
+  border: 0;
+  font-size: 10px !important;
+  font-weight: 400;
+  color: var(--text-3);
+  background: none;
+  transition: color var(--t-fast);
+}
+.tab-btn:hover { color: var(--text-2); }
+
+.tab-btn.active,
+.tab-btn[aria-selected="true"] {
+  color: var(--brand);
+  font-weight: 700;
+  text-shadow: var(--glow);
+}
+.tab-btn.active::after,
+.tab-btn[aria-selected="true"]::after {
+  content: "";
+  display: inline-block;
+  width: 6px; height: 12px;
+  margin-left: 7px;
+  vertical-align: -2px;
+  background: var(--brand);
+  box-shadow: var(--glow);
+  animation: ideology-blink 1.15s step-end infinite;
+}
+@keyframes ideology-blink { 0%, 55% { opacity: 1; } 56%, 100% { opacity: 0; } }
+
+/* ═══ 5 · CONTROLS ════════════════════════════════════════════════════════
+   Every chip and button is a squared mono token; the active one is lit
+   phosphor rather than filled. */
+
+.feed-chip,
+.appr-filter-chip,
+.month-pill,
+.acc-btn,
+.preview-chip,
+.sub-tab {
+  border-radius: 0 !important;
+  border: 1px solid var(--rule) !important;
+  background: transparent !important;
+  color: var(--text-3) !important;
+  font-size: 10px !important;
+  padding: 5px 9px !important;
+  transition: border-color var(--t-fast), color var(--t-fast), background var(--t-fast);
+}
+.feed-chip:hover,
+.appr-filter-chip:hover,
+.month-pill:hover,
+.acc-btn:hover {
+  border-color: var(--rule-strong) !important;
+  color: var(--text) !important;
+  background: var(--surface-lt) !important;
+}
+.feed-chip.active,
+.appr-filter-chip.active,
+.month-pill.active,
+.acc-btn.active {
+  background: transparent !important;
+  border-color: var(--brand) !important;
+  color: var(--brand) !important;
+  font-weight: 700;
+  text-shadow: var(--glow);
+}
+
+.btn {
+  border-radius: 0;
+  border: 1px solid var(--rule);
+  background: transparent;
+  color: var(--text-2);
+  font-size: 10px;
+  font-weight: 400;
+  padding: 8px 13px;
+  min-height: 32px;
+  box-shadow: none;
+  transition: border-color var(--t-fast), color var(--t-fast), background var(--t-fast);
+}
+.btn:hover { border-color: var(--rule-strong); color: var(--text); background: var(--surface-lt); }
+
+/* The only filled element in the interface. One primary action per screen,
+   and it is unmistakable. */
+.btn.primary {
+  background: var(--brand);
+  border-color: var(--brand);
+  color: var(--brand-on);
+  font-weight: 700;
+  box-shadow: var(--glow);
+}
+.btn.primary:hover { background: var(--brand-hi); border-color: var(--brand-hi); }
+.btn.ghost { border-color: transparent; }
+.btn.ghost:hover { border-color: var(--rule); }
+.btn.danger { color: var(--danger-text); border-color: var(--danger-border); }
+.btn.sm { padding: 6px 10px; min-height: 28px; font-size: 9px; }
+
+/* ═══ 6 · SECTION HEADS ═══════════════════════════════════════════════════ */
+
+.content-bar {
+  background: var(--bg) !important;
+  border-bottom: 1px solid var(--rule) !important;
+  padding: 0 18px;
+  height: 46px;
+  gap: 10px;
+}
+
+/* Section titles read as a prompt. */
+.content-title {
+  font-family: var(--mono);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--text);
+}
+.content-title::before {
+  content: "> ";
+  color: var(--brand);
+  text-shadow: var(--glow);
+}
+
+.content-tag {
+  border: 0 !important;
+  background: none !important;
+  padding: 0 !important;
+  font-size: 9px !important;
+  color: var(--text-3) !important;
+}
+
+/* ═══ 7 · READOUT ═════════════════════════════════════════════════════════
+   The KPI row becomes an instrument panel: bracketed corners, mono figures,
+   no fills. */
+
+.kpi-grid {
+  display: grid;
+  gap: 0;
+  border-bottom: 1px solid var(--rule);
+  margin-bottom: 0;
+}
+
+.kpi-card {
+  position: relative;
+  background: none !important;
+  border: 0 !important;
+  border-right: 1px solid var(--rule) !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  padding: 16px 18px 18px;
+  transform: none !important;
+}
+.kpi-card:last-child { border-right: 0 !important; }
+
+/* Corner brackets — the signature frame. Two corners, not four: a terminal
+   implies the box rather than drawing it. */
+.kpi-card::before,
+.kpi-card::after {
+  content: "";
+  position: absolute;
+  width: 9px; height: 9px;
+  border-color: var(--rule-strong);
+  border-style: solid;
+  border-width: 0;
+}
+.kpi-card::before { top: 10px; left: 10px;  border-top-width: 1px; border-left-width: 1px; }
+.kpi-card::after  { bottom: 10px; right: 10px; border-bottom-width: 1px; border-right-width: 1px; }
+.kpi-card:first-child::before { border-color: var(--brand); }
+
+.kpi-label { font-size: 9px !important; margin-bottom: 10px; color: var(--text-3); }
+
+.kpi-val,
+.kpi-card .kpi-inp,
+.kpi-card input.kpi-inp {
+  font-size: 34px !important;
+  font-weight: 700 !important;
+  line-height: 1 !important;
+  letter-spacing: -.02em;
+  color: var(--text) !important;
+  background: none !important;
+  border: 0 !important;
+  padding: 0 !important;
+  height: auto !important;
+  width: auto !important;
+  max-width: 150px;
+}
+.kpi-card:first-child .kpi-val { color: var(--brand) !important; text-shadow: var(--glow); }
+.kpi-card .kpi-inp:focus,
+.kpi-card input.kpi-inp:focus {
+  outline: none !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  color: var(--brand) !important;
+  text-shadow: var(--glow);
+}
+
+.kpi-sub { margin-top: 7px; font-size: 9px !important; color: var(--text-3); }
+
+/* ═══ 8 · THE LOG ═════════════════════════════════════════════════════════
+   The client table reads as log output: mono columns, a caret, no card. */
+
+.table-hd { padding: 22px 18px 10px; }
+.table-hd h3 {
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 400;
+  letter-spacing: var(--track);
+  text-transform: uppercase;
+  color: var(--text-3);
+  margin: 0;
+}
+.table-hd h3::before { content: "── "; color: var(--rule-strong); }
+
+.table-wrap {
+  background: none !important;
+  border: 0 !important;
+  border-top: 1px solid var(--rule) !important;
+  border-radius: 0 !important;
+  overflow: visible !important;
+  margin-bottom: 0;
+}
+.table-wrap table { width: 100%; border-collapse: collapse; }
+
+.table-wrap th {
+  background: none !important;
+  border-bottom: 1px solid var(--rule) !important;
+  padding: 9px 14px !important;
+  text-align: left;
+  font-size: 9px !important;
+  color: var(--text-3);
+}
+
+.table-wrap td {
+  border-bottom: 1px solid var(--border-lt) !important;
+  padding: 0 14px !important;
+  height: 48px;
+  background: none !important;
+  vertical-align: middle;
+  color: var(--text-2);
+  font-size: 12px;
+}
+
+.table-wrap tbody tr { transition: background var(--t-fast); }
+.table-wrap tbody tr:hover { background: var(--surface-lt) !important; }
+
+/* Client name: the one row element allowed to be loud. A caret appears on
+   hover, as if the row were being selected in a picker. */
+.table-wrap td:first-child {
+  font-family: var(--mono);
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  color: var(--text);
+  position: relative;
+  padding-left: 30px !important;
+}
+.table-wrap tbody tr td:first-child::before {
+  content: "›";
+  position: absolute;
+  left: 12px;
+  color: transparent;
+  transition: color var(--t-fast);
+}
+.table-wrap tbody tr:hover td:first-child { color: var(--brand); text-shadow: var(--glow); }
+.table-wrap tbody tr:hover td:first-child::before { color: var(--brand); }
+
+.pkg-badge,
+.pkg-starter, .pkg-essential, .pkg-professional, .pkg-enterprise {
+  border-radius: 0 !important;
+  background: none !important;
+  border: 1px solid var(--rule) !important;
+  color: var(--text-3) !important;
+  font-size: 9px !important;
+  font-weight: 400 !important;
+  padding: 3px 7px !important;
+}
+.pkg-badge svg, .pkg-professional svg, .pkg-essential svg, .pkg-starter svg { display: none; }
+
+/* Status dots become squares. The source used a traffic-light set (.dot.green
+   for active, .red for lost) — green/red is the pair that fails most colour-
+   blind viewers, and there is no green anywhere in this identity. Active is
+   brand yellow; the failure states keep the palette's own warning and danger
+   hues, which are distinguishable by more than hue alone because the word
+   sits beside them. */
+.dot {
+  border-radius: 0 !important;
+  width: 5px !important;
+  height: 5px !important;
+}
+.dot.green { background: var(--brand) !important; box-shadow: var(--glow); }
+.dot.blue  { background: var(--info-text) !important; }
+.dot.amber { background: var(--warning-text) !important; }
+.dot.red   { background: var(--danger-text) !important; }
+
+.table-wrap td span[style*="border-radius:50%"],
+.table-wrap td span[style*="border-radius: 50%"] {
+  border-radius: 0 !important;
+  background: var(--brand) !important;
+  width: 5px !important; height: 5px !important;
+}
+
+/* ═══ 9 · FRAMES ══════════════════════════════════════════════════════════
+   Images are unboxed and butt together. On hover the cell is bracketed at
+   two corners in phosphor — the frame appears only when you address it. */
+
+.feed-cell {
+  border-radius: 0 !important;
+  background: var(--surface-lt) !important;
+  position: relative;
+}
+.feed-cell::before,
+.feed-cell::after {
+  content: "";
+  position: absolute;
+  width: 13px; height: 13px;
+  border-color: var(--brand);
+  border-style: solid;
+  border-width: 0;
+  opacity: 0;
+  transition: opacity var(--t-fast);
+  z-index: 6;
+  pointer-events: none;
+}
+.feed-cell::before { top: 5px; left: 5px;  border-top-width: 1px; border-left-width: 1px; }
+.feed-cell::after  { bottom: 5px; right: 5px; border-bottom-width: 1px; border-right-width: 1px; }
+.feed-cell:hover::before,
+.feed-cell:hover::after { opacity: 1; }
+
+.cell-top-bar {
+  background: linear-gradient(to bottom, rgba(0,0,0,.6) 0%, transparent 100%) !important;
+  padding: 6px 8px 20px !important;
+}
+
+/* Status token. Fixed width, bracketed, monospaced — scannable down a column
+   like a log. */
+.feed-cell-stato-btn {
+  border-radius: 0 !important;
+  background: rgba(8, 8, 8, .85) !important;
+  border: 1px solid var(--rule-strong) !important;
+  color: var(--text-2) !important;
+  font-size: 9px !important;
+  font-weight: 700 !important;
+  padding: 3px 7px !important;
+  backdrop-filter: blur(6px);
+  max-width: 116px !important;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  z-index: 4;
+}
+.feed-cell-stato-btn:hover {
+  border-color: var(--brand) !important;
+  color: var(--brand) !important;
+}
+.feed-cell-stato-btn > span:first-child {
+  border-radius: 0 !important;
+  width: 4px !important; height: 4px !important;
+}
+
+.cell-tags-bar { background: none !important; padding: 6px 2px 0 !important; gap: 10px !important; }
+
+.copy-label,
+.client-copy-lbl { display: none !important; }
+
+.client-copy,
+.cell-caption {
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-2);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* ═══ 10 · BARS ═══════════════════════════════════════════════════════════ */
+
+.feed-ctx-bar,
+.subtopbar,
+.studio-main > .content-bar {
+  background: var(--bg) !important;
+  border-bottom: 1px solid var(--rule) !important;
+}
+.sidebar {
+  background: var(--bg) !important;
+  border-right: 1px solid var(--rule) !important;
+}
+
+/* ═══ 11 · OVERLAYS ═══════════════════════════════════════════════════════
+   Modals are the one place with a fill — they sit above the screen and must
+   read over it. A phosphor top edge stands in for a title rule. */
+
+.modal-box, .modal, .dropdown, .popover,
+.feed-upload-popover, .user-switcher, .cal-day-panel {
+  border-radius: 0 !important;
+  background: var(--surface-hi) !important;
+  border: 1px solid var(--rule-strong) !important;
+  border-top: 2px solid var(--brand) !important;
+  box-shadow: var(--shadow-xl) !important;
+}
+.modal-bg, .modal-overlay {
+  background: rgba(0, 0, 0, .85) !important;
+  backdrop-filter: blur(3px);
+}
+.modal-top { border-bottom: 1px solid var(--rule) !important; padding-bottom: 13px; }
+.modal-top h3 {
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+}
+
+/* ═══ 12 · INPUTS ═════════════════════════════════════════════════════════ */
+
+input[type="text"], input[type="number"], input[type="date"],
+input[type="email"], input[type="password"], select, textarea {
+  border-radius: 0 !important;
+  background: #0d0d0d !important;
+  border: 1px solid var(--rule) !important;
+  color: var(--text) !important;
+  font-size: 12px;
+  padding: 9px 11px;
+  transition: border-color var(--t-fast), box-shadow var(--t-fast);
+}
+input:focus, select:focus, textarea:focus {
+  border-color: var(--brand) !important;
+  box-shadow: var(--glow);
+  outline: none;
+}
+::placeholder { color: var(--placeholder); }
+::selection { background: var(--brand); color: var(--brand-on); }
+
+:focus-visible {
+  outline: 2px solid var(--brand) !important;
+  outline-offset: 1px;
+  border-radius: 0;
+}
+
+/* ═══ 13 · CALENDAR ═══════════════════════════════════════════════════════ */
+
+.cal-cell, .cal-day, .cal-grid > * { border-radius: 0 !important; }
+.cal-day-num { font-family: var(--mono); font-size: 11px; }
+.cal-today .cal-day-num,
+.cal-day.today .cal-day-num {
+  color: var(--brand) !important;
+  font-weight: 700;
+  text-shadow: var(--glow);
+}
+
+/* ═══ 14 · STATUS READOUT ═════════════════════════════════════════════════
+   The save bar becomes a machine status line pinned bottom-right: what the
+   system is doing, in its own voice. */
+
+.save-bar {
+  border-radius: 0 !important;
+  background: var(--bg) !important;
+  border: 1px solid var(--rule) !important;
+  border-right: 0; border-bottom: 0;
+  box-shadow: none !important;
+  padding: 7px 10px !important;
+  gap: 7px;
+}
+.save-bar-label { display: none; }
+
+.cloud-badge {
+  border-radius: 0 !important;
+  border: 1px solid var(--rule) !important;
+  font-size: 9px !important;
+  padding: 4px 8px !important;
+  color: var(--text-3) !important;
+}
+.cloud-badge::before { content: "● "; color: var(--rule-strong); }
+.cloud-badge[data-state="saving"] {
+  color: var(--brand) !important; border-color: var(--brand) !important;
+}
+.cloud-badge[data-state="saving"]::before { color: var(--brand); }
+.cloud-badge[data-state="error"] {
+  color: var(--danger-text) !important; border-color: var(--danger-border) !important;
+}
+.cloud-badge[data-state="error"]::before { color: var(--danger-text); }
+
+.toast {
+  border-radius: 0 !important;
+  background: var(--brand) !important;
+  color: var(--brand-on) !important;
+  font-size: 10px !important;
+  font-weight: 700;
+  box-shadow: var(--glow-strong) !important;
+  border: 0 !important;
+}
+
+#theme-toggle {
+  border-radius: 0 !important;
+  border: 1px solid var(--rule) !important;
+  width: 30px !important; height: 30px !important;
+  color: var(--text-3);
+  font-size: 12px !important;
+}
+#theme-toggle:hover { border-color: var(--brand) !important; color: var(--brand); }
+
+/* ═══ 15 · LIGHT THEME ════════════════════════════════════════════════════
+   A terminal is a lit display, so light mode is the awkward case by nature.
+   It is kept working and legible — same geometry, same mono/prose split —
+   but the phosphor glow is dropped (a glow on white is just blur) and the
+   scanlines invert to dark-on-light at a lower opacity. */
+
+[data-theme="light"] {
+  --rule:        #e2e2e2;
+  --rule-strong: #bcbcbc;
+  --surface:     var(--bg);
+  --surface-lt:  #f5f5f5;
+  --surface-hi:  #ffffff;
+  --border:      var(--rule);
+  --border-lt:   #efefef;
+  --glow:        none;
+  --glow-strong: none;
+}
+[data-theme="light"] body::before {
+  background:
+    repeating-linear-gradient(to bottom,
+      rgba(0, 0, 0, .018) 0px, rgba(0, 0, 0, .018) 1px,
+      transparent 1px, transparent 3px);
+}
+[data-theme="light"] .feed-cell-stato-btn {
+  background: rgba(255, 255, 255, .92) !important;
+  color: var(--text-2) !important;
+}
+[data-theme="light"] input,
+[data-theme="light"] textarea,
+[data-theme="light"] select { background: #fff !important; }
+[data-theme="light"] .modal-bg { background: rgba(16, 16, 16, .5) !important; }
+
+/* ═══ 16 · MOTION ═════════════════════════════════════════════════════════
+   The cursor blink is the only looping animation in the interface, and it is
+   exactly the kind of thing that triggers discomfort — so it stops entirely,
+   rather than merely shortening, under a reduced-motion preference. */
+
+@media (prefers-reduced-motion: reduce) {
+  .tab-btn.active::after,
+  .tab-btn[aria-selected="true"]::after {
+    animation: none;
+    opacity: 1;
+  }
+  *, *::before, *::after {
+    transition-duration: .01ms !important;
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}
+
+/* ═══ 17 · NARROW ═════════════════════════════════════════════════════════ */
+
+@media (max-width: 900px) {
+  .kpi-grid { grid-template-columns: repeat(2, 1fr) !important; }
+  .kpi-card:nth-child(2) { border-right: 0 !important; }
+  .kpi-card:nth-child(-n+2) { border-bottom: 1px solid var(--rule) !important; }
+  .kpi-val, .kpi-card .kpi-inp { font-size: 27px !important; }
+  .topbar-brand { padding: 0 11px; }
+  .tab-btn { padding: 0 10px; }
+  .btn { min-height: 44px; }   /* finger, not pointer */
+}

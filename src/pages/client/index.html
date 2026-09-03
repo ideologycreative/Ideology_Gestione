@@ -1,0 +1,1255 @@
+<!DOCTYPE html>
+<html lang="it" data-theme="dark">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover"/>
+<title>PED — Ideology</title>
+<meta name="description" content="Piano editoriale — Ideology Creative Studio">
+<meta name="robots" content="noindex, nofollow">
+<link rel="icon" href="/assets/favicon.svg" type="image/svg+xml"/>
+<link rel="stylesheet" href="/src/styles/ideology-tokens.css"/>
+<link rel="stylesheet" href="/src/styles/monthpicker.css"/>
+<style>
+/*
+ * CLIENT PORTAL — Ideology Creative Studio
+ * ═══════════════════════════════════════════════════════════════════════════
+ *
+ * The only Ideology surface a client ever sees. One job: approve this month's
+ * work or say what to change, on a phone, without a login.
+ *
+ * ─── THE CLIENT'S COLOUR, NOT OURS ─────────────────────────────────────────
+ * Every portal used to be Ideology yellow on black, which made five different
+ * brands look like five copies of one agency page. The client's own colour now
+ * drives the whole palette: it is injected as --accent at boot, and every
+ * chrome element reads from that. Ideology keeps only the "a cura di" line.
+ *
+ * The GROUND stays dark whatever the accent, and the accent never gets near a
+ * photograph. Judging a colour grade next to a field of someone's brand teal
+ * is not possible, and this page exists to judge photographs.
+ *
+ * Text on the accent is computed from its luminance, never assumed — a pale
+ * brand colour needs black on top, a dark one needs white, and guessing wrong
+ * makes the primary action unreadable.
+ *
+ * ─── PLATFORM-ACCURATE POST VIEW ───────────────────────────────────────────
+ * Clicking a frame does not open a lightbox — it opens the post as the
+ * platform will actually render it. Instagram desktop puts the media left and
+ * a caption rail right, under the account's own handle and avatar; Facebook
+ * stacks header, caption, then media. What the client signs off on is what
+ * they will see published, including the crop.
+ *
+ * ─── SAFETY ────────────────────────────────────────────────────────────────
+ * Everything reaching the DOM goes through textContent. An earlier version of
+ * this page interpolated captions into innerHTML; with 'unsafe-inline' in the
+ * CSP a caption containing a script tag executed in the client's browser.
+ * docs/smoke.mjs injects a payload and asserts it renders as text.
+ */
+
+@font-face {
+  font-family: 'Ideology Mono';
+  src: url('/assets/fonts/JetBrainsMono-400.woff2') format('woff2');
+  font-weight: 400; font-display: swap;
+}
+@font-face {
+  font-family: 'Ideology Mono';
+  src: url('/assets/fonts/JetBrainsMono-700.woff2') format('woff2');
+  font-weight: 700; font-display: swap;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+
+:root {
+  --mono: 'Ideology Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --rule: #232323;
+  --rule-2: #383838;
+  --track: .14em;
+
+  /* Overwritten at boot from the client's own colour. The defaults are only
+     what shows for the half-second before that runs. */
+  --accent: #F2C700;
+  --accent-on: #101010;
+  --accent-dim: rgba(242, 199, 0, .14);
+  --accent-glow: 0 0 14px rgba(242, 199, 0, .34);
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "zero" 0;
+  -webkit-font-smoothing: antialiased;
+}
+
+.wrap { max-width: 1080px; margin: 0 auto; padding: 0 22px; }
+
+/* ═══ MASTHEAD ════════════════════════════════════════════════════════════
+   Ideology on the left, the client on the right, an accent hairline between
+   the two. Whose page this is should be unambiguous from the first glance. */
+
+.cv-top {
+  border-bottom: 1px solid var(--rule);
+  border-top: 3px solid var(--accent);
+}
+.cv-top-in {
+  max-width: 1080px; margin: 0 auto; padding: 15px 22px;
+  display: flex; align-items: center; gap: 14px;
+}
+.cv-studio { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.cv-studio img { height: 22px; width: auto; max-width: 128px; object-fit: contain; display: block; }
+.cv-mark {
+  width: 24px; height: 24px;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: var(--brand); color: var(--brand-on);
+  font-family: var(--font-mark); font-size: 12px; letter-spacing: -.06em;
+}
+.cv-by {
+  font-family: var(--mono); font-size: 8px;
+  letter-spacing: var(--track); text-transform: uppercase;
+  color: var(--text-3); white-space: nowrap;
+}
+.cv-spacer { flex: 1; }
+
+.cv-client-id { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.cv-logo {
+  width: 34px; height: 34px; flex-shrink: 0;
+  object-fit: contain; background: var(--surface-hi);
+}
+.cv-logo--txt {
+  display: inline-flex; align-items: center; justify-content: center;
+  font-family: var(--mono); font-size: 12px; font-weight: 700;
+}
+.cv-client {
+  font-family: var(--font-display);
+  font-size: 17px; font-weight: 600; letter-spacing: -.02em;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
+/* ═══ MONTH ═══════════════════════════════════════════════════════════════
+   The month set large is the title of the document: this is the September
+   plan, and that is the first thing to land. The selector stays small beside
+   it — you change month rarely, you read it constantly. */
+
+.cv-head { padding: 34px 0 24px; display: flex; align-items: flex-end; gap: 26px; flex-wrap: wrap; }
+
+.cv-month-block { min-width: 0; }
+.cv-month {
+  font-family: var(--font-display);
+  font-size: 56px; font-weight: 600;
+  line-height: .95; letter-spacing: -.035em;
+  margin: 0;
+}
+.cv-month b { color: var(--accent); font-weight: 600; }
+.cv-year {
+  font-family: var(--mono); font-size: 10px;
+  letter-spacing: .22em; text-transform: uppercase;
+  color: var(--text-3); margin-top: 10px;
+}
+
+.cv-counter { display: flex; flex-direction: column; gap: 9px; }
+.cv-count {
+  font-family: var(--mono); font-size: 34px; font-weight: 700;
+  line-height: 1; letter-spacing: -.02em; color: var(--text-3);
+  display: flex; align-items: baseline;
+}
+.cv-count b { color: var(--accent); }
+.cv-count span { font-size: 20px; color: var(--rule-2); padding: 0 2px; }
+.cv-bar {
+  font-family: var(--mono); font-size: 13px; line-height: 1;
+  letter-spacing: .04em; color: var(--rule-2); word-break: break-all;
+}
+.cv-bar b { color: var(--accent); font-weight: 400; }
+.cv-count-lbl {
+  font-family: var(--mono); font-size: 8px;
+  letter-spacing: var(--track); text-transform: uppercase; color: var(--text-3);
+}
+
+.cv-controls { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-left: auto; }
+
+.cv-seg { display: flex; }
+.cv-seg button {
+  appearance: none; border: 1px solid var(--rule); border-right: 0;
+  background: none; padding: 0 13px; min-height: 38px;
+  font-family: var(--mono); font-size: 10px;
+  letter-spacing: var(--track); text-transform: uppercase;
+  color: var(--text-3); cursor: pointer; white-space: nowrap;
+  transition: color .15s, background .15s, border-color .15s;
+}
+.cv-seg button:last-child { border-right: 1px solid var(--rule); }
+.cv-seg button:hover { color: var(--text); background: var(--surface-lt); }
+.cv-seg button[aria-pressed="true"] {
+  border-color: var(--accent); color: var(--accent); font-weight: 700;
+}
+.cv-seg button[aria-pressed="true"] + button { border-left-color: var(--accent); }
+
+select.cv-sel {
+  appearance: none;
+  background: transparent url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='9' height='6' viewBox='0 0 9 6'%3E%3Cpath d='M1 1l3.5 3.5L8 1' stroke='%236e6e6e' stroke-width='1.4' fill='none' stroke-linecap='square'/%3E%3C/svg%3E") no-repeat right 11px center;
+  border: 1px solid var(--rule); border-radius: 0;
+  color: var(--text);
+  font-family: var(--mono); font-size: 10px;
+  letter-spacing: var(--track); text-transform: uppercase;
+  padding: 0 30px 0 12px; height: 38px; cursor: pointer;
+}
+select.cv-sel:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+/* ═══ GRID ════════════════════════════════════════════════════════════════ */
+
+.cv-grid {
+  display: grid;
+  grid-template-columns: repeat(var(--cols, 3), minmax(0, 1fr));
+  /* Stretch, not start. Media is now uniform across the row, so the only
+     variance left is caption length — clamped to three lines — and matching
+     heights read as a grid instead of a ragged edge. Actions stay pinned to
+     the bottom of each cell via margin-top:auto. */
+  align-items: stretch;
+  gap: 1px; background: var(--rule);
+  border: 1px solid var(--rule);
+  margin-bottom: 64px;
+}
+@media (max-width: 720px) { .cv-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+.cv-post { background: var(--bg); display: flex; flex-direction: column; position: relative; }
+.cv-post.is-spon { box-shadow: inset 0 0 0 1px var(--accent); }
+
+.cv-media { position: relative; background: var(--surface-lt); cursor: zoom-in; overflow: hidden; flex-shrink: 0; }
+.cv-media img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.cv-media img.is-broken {
+  object-fit: contain; color: transparent; font-size: 0;
+  background: repeating-linear-gradient(45deg, var(--surface-lt) 0 10px, var(--surface-hi) 10px 20px);
+}
+
+.cv-mark-tr, .cv-mark-bl {
+  position: absolute; font-family: var(--mono);
+  padding: 3px 6px; background: rgba(8,8,8,.84); backdrop-filter: blur(6px);
+  color: #f2f2f2; font-size: 9px; font-weight: 700;
+  letter-spacing: .1em; text-transform: uppercase;
+}
+.cv-mark-tr { top: 0; right: 0; }
+.cv-mark-tr--shift { right: 92px; }
+.cv-mark-bl { bottom: 0; left: 0; }
+
+/* Reels carry a play glyph in the grid — the same signal the platforms use,
+   and the cue that opening this one will actually run something. */
+.cv-play {
+  position: absolute; inset: 0; margin: auto;
+  width: 46px; height: 46px; border-radius: 50%;
+  background: rgba(0,0,0,.45); backdrop-filter: blur(3px);
+  border: 1.5px solid rgba(255,255,255,.85);
+  display: flex; align-items: center; justify-content: center;
+  pointer-events: none;
+}
+.cv-play::after {
+  content: ""; margin-left: 3px;
+  border-left: 13px solid #fff;
+  border-top: 8px solid transparent;
+  border-bottom: 8px solid transparent;
+}
+
+/* The sponsorship disclosure. Top-right, in the client's accent: it is a
+   legal marker, so it is the one label allowed to compete with the image. */
+.cv-spon {
+  position: absolute; top: 0; right: 0;
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 4px 8px;
+  background: var(--accent); color: var(--accent-on);
+  font-family: var(--mono); font-size: 9px; font-weight: 700;
+  letter-spacing: .12em; text-transform: uppercase;
+}
+.cv-spon i { width: 5px; height: 5px; background: var(--accent-on); border-radius: 50%; flex-shrink: 0; }
+
+.cv-meta { padding: 10px 12px 12px; display: flex; flex-direction: column; gap: 8px; flex: 1; }
+.cv-copy {
+  font-family: var(--font); font-size: 12px; line-height: 1.55;
+  color: var(--text-2); white-space: pre-wrap; word-break: break-word;
+  display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
+}
+.cv-pillar {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-family: var(--mono); font-size: 9px;
+  letter-spacing: .1em; text-transform: uppercase; color: var(--text-3);
+}
+.cv-pillar i { width: 5px; height: 5px; background: var(--accent); flex-shrink: 0; }
+
+.cv-note {
+  padding: 9px 10px;
+  border: 1px solid var(--warning-border); border-left-width: 2px;
+  background: var(--warning-bg); color: var(--warning-text);
+  font-size: 11px; line-height: 1.5; white-space: pre-wrap; word-break: break-word;
+}
+.cv-note b {
+  display: block; font-family: var(--mono); font-size: 9px; font-weight: 700;
+  letter-spacing: .1em; text-transform: uppercase; margin-bottom: 3px;
+}
+
+/* ═══ ACTIONS ═════════════════════════════════════════════════════════════ */
+
+.cv-actions { display: flex; margin-top: auto; }
+.cv-btn {
+  appearance: none; flex: 1;
+  border: 1px solid var(--rule); background: none; color: var(--text-2);
+  padding: 12px 8px; min-height: 44px;
+  font-family: var(--mono); font-size: 10px; font-weight: 700;
+  letter-spacing: var(--track); text-transform: uppercase;
+  cursor: pointer; white-space: nowrap;
+  transition: background .15s, color .15s, border-color .15s;
+}
+.cv-btn + .cv-btn { border-left: 0; }
+.cv-btn:hover { background: var(--surface-lt); color: var(--text); }
+.cv-btn.primary {
+  background: var(--accent); border-color: var(--accent); color: var(--accent-on);
+}
+.cv-btn.primary:hover { filter: brightness(1.08); }
+.cv-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: -3px; }
+
+.cv-done {
+  margin-top: auto; padding: 12px;
+  background: var(--accent); color: var(--accent-on);
+  font-family: var(--mono); font-size: 10px; font-weight: 700;
+  letter-spacing: var(--track); text-transform: uppercase;
+  display: flex; align-items: center; gap: 7px;
+}
+.cv-pending {
+  margin-top: auto; padding: 12px;
+  border-top: 1px solid var(--warning-border); color: var(--warning-text);
+  font-family: var(--mono); font-size: 10px; font-weight: 700;
+  letter-spacing: var(--track); text-transform: uppercase;
+  display: flex; align-items: center; gap: 7px;
+}
+
+/* ═══ EMPTY / FATAL ═══════════════════════════════════════════════════════ */
+
+.cv-empty {
+  grid-column: 1 / -1; background: var(--bg);
+  padding: 70px 20px; text-align: center; color: var(--text-3);
+  font-family: var(--mono); font-size: 11px;
+  letter-spacing: var(--track); text-transform: uppercase;
+}
+.cv-fatal {
+  max-width: 460px; margin: 16vh auto; padding: 30px 26px;
+  border: 1px solid var(--rule-2); border-top: 3px solid var(--brand);
+  background: var(--surface-lt);
+}
+.cv-fatal h1 {
+  font-family: var(--mono); font-size: 13px; font-weight: 700;
+  letter-spacing: .12em; text-transform: uppercase; margin: 0 0 12px;
+}
+.cv-fatal p { margin: 0; color: var(--text-3); font-size: 13px; line-height: 1.7; }
+
+/* ═══ PLATFORM POST VIEW ══════════════════════════════════════════════════
+   Not a lightbox — a mock of the real thing. Instagram desktop is media left
+   with a caption rail right; Facebook stacks header, caption, media. The
+   client approves the layout they will actually get. */
+
+.pv {
+  position: fixed; inset: 0; z-index: 80;
+  display: none; align-items: center; justify-content: center;
+  background: rgba(0,0,0,.9); padding: 40px 22px;
+}
+.pv.open { display: flex; }
+.pv-close, .pv-nav {
+  position: fixed; width: 40px; height: 40px;
+  border: 1px solid var(--rule-2); background: var(--bg); color: var(--text);
+  font-family: var(--mono); font-size: 14px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+}
+.pv-close { top: 18px; right: 18px; }
+.pv-nav { top: 50%; transform: translateY(-50%); }
+.pv-nav.prev { left: 18px; } .pv-nav.next { right: 18px; }
+.pv-close:hover, .pv-nav:hover { border-color: var(--accent); color: var(--accent); }
+@media (max-width: 860px) { .pv-nav { display: none; } }
+
+/* The mock itself: white card, because that is what these platforms are. */
+.pv-card {
+  background: #fff; color: #0f0f0f;
+  display: flex; max-width: 1040px;
+  overflow: hidden;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+}
+.pv-card--stack { flex-direction: column; max-width: 560px; }
+@media (max-width: 860px) { .pv-card { flex-direction: column; max-width: 460px; overflow-y: auto; } }
+
+/* The detail frame must not re-crop. The grid already shows the published
+   crop; opening a post is where you inspect the asset itself, so the media is
+   CONTAINED — nothing is cut, ever. A source that does not match the format
+   letterboxes, and that is information worth seeing: it tells the planner the
+   asset is the wrong shape for the placement.
+
+   Sizing is driven by height, not by flex. Letting flex stretch the box while
+   an aspect-ratio was also set produced a frame that was neither ratio — a
+   9:16 reel rendered 600x774 and cropped a second time, differently from the
+   grid. */
+.pv-media {
+  background: #000;
+  flex: 0 0 auto;
+  height: min(82vh, 760px);
+  width: auto;
+  max-width: 100%;
+  display: flex; align-items: center; justify-content: center; position: relative;
+}
+.pv-media img,
+.pv-media video { width: 100%; height: 100%; object-fit: contain; display: block; }
+.pv-card--stack .pv-media { height: auto; width: 100%; max-height: 62vh; }
+.pv-card--stack .pv-media img,
+.pv-card--stack .pv-media video { max-height: 62vh; }
+
+.pv-dots {
+  position: absolute; bottom: 12px; left: 0; right: 0;
+  display: flex; justify-content: center; gap: 5px;
+}
+.pv-dots i { width: 6px; height: 6px; border-radius: 50%; background: rgba(255,255,255,.45); }
+.pv-dots i.on { background: #fff; }
+
+/* Right rail — Instagram's desktop caption column. */
+.pv-side {
+  width: 348px; flex-shrink: 0;
+  display: flex; flex-direction: column;
+  border-left: 1px solid #dbdbdb;
+}
+.pv-card--stack .pv-side { width: auto; border-left: 0; }
+
+.pv-hd {
+  display: flex; align-items: center; gap: 11px;
+  padding: 13px 15px; border-bottom: 1px solid #efefef; flex-shrink: 0;
+}
+.pv-av {
+  width: 32px; height: 32px; border-radius: 50%; flex-shrink: 0;
+  object-fit: cover; background: #efefef;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 12px; font-weight: 700; color: #fff;
+}
+.pv-av--ring { box-shadow: 0 0 0 2px #fff, 0 0 0 4px #ff3040; }
+.pv-user { font-size: 14px; font-weight: 600; line-height: 1.2; }
+.pv-sub { font-size: 12px; color: #737373; }
+.pv-more { margin-left: auto; color: #262626; font-size: 18px; line-height: 1; }
+
+.pv-body { flex: 1; overflow-y: auto; padding: 14px 15px; }
+.pv-caption { font-size: 14px; line-height: 1.5; white-space: pre-wrap; word-break: break-word; }
+.pv-caption b { font-weight: 600; margin-right: 6px; }
+.pv-slide-copy { margin-top: 12px; padding-top: 12px; border-top: 1px solid #efefef; font-size: 13px; color: #444; }
+
+.pv-actions {
+  border-top: 1px solid #efefef; padding: 11px 15px 13px; flex-shrink: 0;
+}
+.pv-icons { display: flex; gap: 15px; align-items: center; color: #262626; margin-bottom: 8px; }
+.pv-icons .sp { margin-left: auto; }
+.pv-likes { font-size: 14px; font-weight: 600; }
+.pv-date { font-size: 10px; color: #8e8e8e; text-transform: uppercase; letter-spacing: .02em; margin-top: 6px; }
+
+.pv-spon-note {
+  font-size: 12px; color: #737373; font-weight: 600;
+  padding: 0 15px 10px; margin-top: -4px;
+}
+
+/* Facebook stacks: header, caption, then media. */
+.pv-fb-hd { display: flex; align-items: center; gap: 10px; padding: 12px 15px; }
+.pv-fb-copy { padding: 0 15px 12px; font-size: 15px; line-height: 1.45; white-space: pre-wrap; word-break: break-word; }
+.pv-fb-actions {
+  display: flex; gap: 8px; padding: 8px 15px 12px; border-top: 1px solid #e4e6eb;
+  font-size: 13px; color: #65676b; font-weight: 600;
+}
+.pv-fb-actions span { flex: 1; text-align: center; padding: 6px 0; }
+
+.pv-plat {
+  position: absolute; top: -30px; left: 0;
+  font-family: var(--mono); font-size: 9px;
+  letter-spacing: var(--track); text-transform: uppercase; color: var(--text-3);
+}
+.pv-shell { position: relative; width: 100%; max-width: 1040px; display: flex; justify-content: center; }
+.pv-card--stack ~ .pv-plat { max-width: 560px; }
+
+/* ═══ MODAL ═══════════════════════════════════════════════════════════════ */
+
+.cv-modal-bg {
+  position: fixed; inset: 0; z-index: 90;
+  display: none; align-items: center; justify-content: center;
+  background: rgba(0,0,0,.88); padding: 22px;
+}
+.cv-modal-bg.open { display: flex; }
+.cv-modal {
+  width: 100%; max-width: 460px;
+  background: var(--surface-hi);
+  border: 1px solid var(--rule-2); border-top: 3px solid var(--accent);
+  padding: 24px;
+}
+.cv-modal h2 {
+  font-family: var(--mono); font-size: 12px; font-weight: 700;
+  letter-spacing: .12em; text-transform: uppercase; margin: 0 0 10px;
+}
+.cv-modal p { margin: 0 0 16px; color: var(--text-3); font-size: 12px; line-height: 1.6; }
+.cv-modal textarea {
+  width: 100%; min-height: 120px; resize: vertical;
+  background: #0d0d0d; border: 1px solid var(--rule); border-radius: 0;
+  color: var(--text); font-family: var(--font); font-size: 13px; line-height: 1.6; padding: 12px;
+}
+.cv-modal textarea:focus { outline: none; border-color: var(--accent); }
+.cv-modal textarea::placeholder { color: var(--placeholder); }
+.cv-modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 16px; }
+.cv-modal-actions .cv-btn { flex: 0 0 auto; padding: 12px 20px; border-left: 1px solid var(--rule); }
+
+/* ═══ TOAST ═══════════════════════════════════════════════════════════════ */
+
+.cv-toast {
+  position: fixed; left: 50%; bottom: 24px; transform: translate(-50%, 12px);
+  z-index: 95; opacity: 0; pointer-events: none;
+  background: var(--accent); color: var(--accent-on);
+  font-family: var(--mono); font-size: 10px; font-weight: 700;
+  letter-spacing: var(--track); text-transform: uppercase;
+  padding: 12px 18px; transition: opacity .15s, transform .15s;
+}
+.cv-toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+/* ═══ UGC ═════════════════════════════════════════════════════════════════ */
+
+.cv-ugc { padding: 0 0 60px; }
+.cv-ugc-month {
+  font-family: var(--mono); font-size: 10px; font-weight: 400;
+  letter-spacing: var(--track); text-transform: uppercase;
+  color: var(--text-3); margin: 22px 0 12px;
+}
+.cv-ugc-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 1px; background: var(--rule); border: 1px solid var(--rule);
+}
+.cv-slot { background: var(--bg); padding: 13px; }
+.cv-slot-date { font-family: var(--mono); font-size: 13px; font-weight: 700; letter-spacing: .04em; margin-bottom: 6px; }
+.cv-slot-brief { font-size: 12px; color: var(--text-2); line-height: 1.5; margin-bottom: 10px; }
+.cv-slot-meta { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.cv-chip {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-family: var(--mono); font-size: 9px; font-weight: 700;
+  letter-spacing: .1em; text-transform: uppercase; color: var(--text-3);
+}
+.cv-chip i { width: 5px; height: 5px; flex-shrink: 0; }
+.cv-creator { font-family: var(--mono); font-size: 9px; color: var(--text-3); letter-spacing: .06em; }
+
+@media (max-width: 560px) {
+  .cv-month { font-size: 38px; }
+  .cv-head { padding: 24px 0 18px; gap: 16px; }
+  .cv-controls { margin-left: 0; width: 100%; }
+  .wrap, .cv-top-in { padding-left: 14px; padding-right: 14px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition-duration: .01ms !important; }
+}
+</style>
+</head>
+<body>
+
+<div id="cv-root"></div>
+
+<div class="pv" id="pv">
+  <button class="pv-close" id="pv-close" aria-label="Chiudi">✕</button>
+  <button class="pv-nav prev" id="pv-prev" aria-label="Precedente">‹</button>
+  <button class="pv-nav next" id="pv-next" aria-label="Successivo">›</button>
+  <div class="pv-shell"><span class="pv-plat" id="pv-plat"></span><div id="pv-mount"></div></div>
+</div>
+
+<div class="cv-modal-bg" id="cv-modal">
+  <div class="cv-modal" role="dialog" aria-modal="true" aria-labelledby="cv-modal-title">
+    <h2 id="cv-modal-title">Richiedi una modifica</h2>
+    <p>Descrivi cosa vorresti cambiare. Il messaggio arriva direttamente al team che ha preparato il contenuto.</p>
+    <textarea id="cv-modal-text" placeholder="Es. Possiamo usare una foto diversa? Questa l'abbiamo già pubblicata a luglio."></textarea>
+    <div class="cv-modal-actions">
+      <button class="cv-btn" id="cv-modal-cancel">Annulla</button>
+      <button class="cv-btn primary" id="cv-modal-send">Invia richiesta</button>
+    </div>
+  </div>
+</div>
+
+<div class="cv-toast" id="cv-toast" role="status" aria-live="polite"></div>
+
+<script src="/src/store/store.js"></script>
+<script src="/src/store/seed.js"></script>
+<script src="/src/shared/monthpicker.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  var S = window.IdeologyStore;
+
+  function safeUrl(u) {
+    var s = String(u || '').trim();
+    if (/^https?:\/\//i.test(s)) return s;
+    if (/^\/(?!\/)/.test(s)) return s;          // same-origin asset path
+    if (/^data:image\/(png|jpe?g|gif|webp|avif|svg\+xml);base64,/i.test(s)) return s;
+    return '';
+  }
+
+  function safeVideoUrl(u) {
+    var s = String(u || '').trim();
+    if (/^https?:\/\//i.test(s)) return s;
+    if (/^\/(?!\/)/.test(s)) return s;
+    if (/^data:video\/(mp4|webm|ogg|quicktime);base64,/i.test(s)) return s;
+    if (/^blob:/i.test(s)) return s;
+    return '';
+  }
+
+  var MONTHS = ['Gennaio','Febbraio','Marzo','Aprile','Maggio','Giugno',
+                'Luglio','Agosto','Settembre','Ottobre','Novembre','Dicembre'];
+
+  /* Platform rules, mirrored from the studio app so the client sees the same
+     crop the planner approved. */
+  var PLATFORMS = {
+    Instagram: { label: 'Instagram', feed: '4/5',  cols: 3, layout: 'ig' },
+    Facebook:  { label: 'Facebook',  feed: '1/1',  cols: 3, layout: 'fb' },
+    TikTok:    { label: 'TikTok',    feed: '9/16', cols: 4, layout: 'stack' },
+    LinkedIn:  { label: 'LinkedIn',  feed: '1/1',  cols: 3, layout: 'fb' },
+    YouTube:   { label: 'YouTube',   feed: '16/9', cols: 2, layout: 'stack' },
+    Pinterest: { label: 'Pinterest', feed: '2/3',  cols: 4, layout: 'stack' },
+    Threads:   { label: 'Threads',   feed: '4/5',  cols: 3, layout: 'fb' },
+  };
+  function platform(n) { return PLATFORMS[n] || PLATFORMS.Instagram; }
+  /* Where the frame is drawn decides its shape. In the GRID every cell takes
+     the account's feed ratio, whatever the item is — that is what the
+     platforms do, and it is the only way a row can align. Opened as a post,
+     a reel or story gets its true 9:16. */
+  function ratioFor(item, acc, context) {
+    var feed = platform((acc || {}).platform).feed;
+    if (context === 'grid' || !item) return feed;
+    if (item._kind === 'story' || item.type === 'reel') return '9/16';
+    return feed;
+  }
+
+  var TOKEN = {
+    approvato: '[OK] Approvato',
+    revisione: '[!!] Modifica richiesta',
+    approvare: '[??] In attesa',
+    bozza:     '[··] Bozza',
+  };
+
+  var client = null, accounts = [], accIdx = 0, month = '', view = 'preview';
+  var pvItems = [], pvIdx = 0, pvItem = null, pendingRevision = null;
+
+  /* ── Accent ──────────────────────────────────────────────────────────────
+     The client's own colour becomes the page's palette. Text placed on it is
+     computed from relative luminance rather than assumed: a pale brand colour
+     needs black on top and a dark one needs white, and getting it wrong makes
+     the approve button unreadable. */
+  function onColor(hex) {
+    var m = /^#?([0-9a-f]{6})$/i.exec(String(hex || ''));
+    if (!m) return '#101010';
+    var n = parseInt(m[1], 16);
+    var f = function (v) { return v <= .03928 ? v / 12.92 : Math.pow((v + .055) / 1.055, 2.4); };
+    var L = .2126 * f((n >> 16) / 255) + .7152 * f(((n >> 8) & 255) / 255) + .0722 * f((n & 255) / 255);
+    return L > .38 ? '#101010' : '#f2f2f2';
+  }
+  function rgba(hex, a) {
+    var m = /^#?([0-9a-f]{6})$/i.exec(String(hex || ''));
+    if (!m) return 'rgba(242,199,0,' + a + ')';
+    var n = parseInt(m[1], 16);
+    return 'rgba(' + (n >> 16) + ',' + ((n >> 8) & 255) + ',' + (n & 255) + ',' + a + ')';
+  }
+  function applyAccent(hex) {
+    var r = document.documentElement.style;
+    r.setProperty('--accent', hex);
+    r.setProperty('--accent-on', onColor(hex));
+    r.setProperty('--accent-dim', rgba(hex, .14));
+    r.setProperty('--accent-glow', '0 0 14px ' + rgba(hex, .34));
+  }
+
+  function el(tag, cls, text) {
+    var e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (text != null) e.textContent = text;   // textContent, never innerHTML
+    return e;
+  }
+  function svg(d, size) {
+    var s = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    s.setAttribute('viewBox', '0 0 24 24');
+    s.setAttribute('width', size || 22); s.setAttribute('height', size || 22);
+    s.setAttribute('fill', 'none'); s.setAttribute('stroke', 'currentColor');
+    s.setAttribute('stroke-width', '1.6'); s.setAttribute('aria-hidden', 'true');
+    s.innerHTML = d;
+    return s;
+  }
+
+  /* ── Boot ────────────────────────────────────────────────────────────── */
+
+  function token() {
+    var p = new URLSearchParams(location.search);
+    return p.get('t') || p.get('token') || location.hash.replace(/^#/, '') || '';
+  }
+
+  function fatal(title, msg) {
+    var root = document.getElementById('cv-root');
+    root.textContent = '';
+    var box = el('div', 'cv-fatal');
+    box.appendChild(el('h1', null, title));
+    box.appendChild(el('p', null, msg));
+    root.appendChild(box);
+  }
+
+  function init() {
+    try { if (S.isEmpty() && window.IdeologySeed) IdeologySeed.run(S); } catch (e) { console.error(e); }
+
+    var t = token();
+    if (!t) {
+      return fatal('Link non valido',
+        'Manca il codice di accesso. Apri il link completo che ti è stato inviato dal team Ideology.');
+    }
+    client = S.getClientByToken(t);
+    if (!client) {
+      return fatal('Contenuti non trovati',
+        'Questo link non corrisponde a nessun cliente attivo. Potrebbe essere scaduto — contatta il tuo referente.');
+    }
+
+    applyAccent(client.color || '#F2C700');
+    accounts = client.accounts || [];
+    var now = new Date();
+    month = MONTHS[now.getMonth()] + ' ' + now.getFullYear();
+    render();
+  }
+
+  /* ── Data ────────────────────────────────────────────────────────────── */
+
+  function currentAccount() { return accounts[accIdx] || null; }
+
+  function visibleItems() {
+    var acc = currentAccount();
+    if (!acc) return [];
+    return (S.getFeed(acc.id, month) || []).filter(function (it) {
+      return it && (it.apprStato || 'bozza') !== 'bozza';
+    });
+  }
+
+  function writeItem(index, patch) {
+    var acc = currentAccount();
+    if (!acc) return;
+    var all = (S.getFeed(acc.id, month) || []).slice();
+    var target = visibleItems()[index];
+    if (!target) return;
+    var real = all.findIndex(function (x) { return x && x.id === target.id; });
+    if (real < 0) return;
+    all[real] = Object.assign({}, all[real], patch);
+    S.setFeed(acc.id, month, all);
+  }
+
+  function fmtDate(iso) {
+    var p = String(iso || '').split('-');
+    return p.length === 3 ? p[2] + '.' + p[1] : '—';
+  }
+  function longDate(iso) {
+    var p = String(iso || '').split('-');
+    if (p.length !== 3) return '';
+    return parseInt(p[2], 10) + ' ' + MONTHS[parseInt(p[1], 10) - 1] + ' ' + p[0];
+  }
+
+  /* ── Render ──────────────────────────────────────────────────────────── */
+
+  function render() {
+    var root = document.getElementById('cv-root');
+    root.textContent = '';
+    root.appendChild(masthead());
+
+    var wrap = el('div', 'wrap');
+    wrap.appendChild(head());
+    wrap.appendChild(view === 'ugc' ? ugcPanel() : gridPanel());
+    root.appendChild(wrap);
+  }
+
+  function masthead() {
+    var bar = el('div', 'cv-top');
+    var inner = el('div', 'cv-top-in');
+
+    /* Ideology first — the studio's mark, uploaded in Impostazioni. */
+    var studio = el('div', 'cv-studio');
+    var logo = safeUrl(S.getSetting('studioLogo', ''));
+    if (logo) {
+      var img = document.createElement('img');
+      img.src = logo; img.alt = 'Ideology';
+      studio.appendChild(img);
+    } else {
+      var mk = el('span', 'cv-mark', '!d');
+      mk.setAttribute('aria-hidden', 'true');
+      studio.appendChild(mk);
+      studio.appendChild(el('span', 'cv-by', 'Ideology'));
+    }
+    inner.appendChild(studio);
+    inner.appendChild(el('div', 'cv-spacer'));
+
+    /* Then the client, whose page this is. */
+    var id = el('div', 'cv-client-id');
+    var clogo = safeUrl(client.logo);
+    if (clogo) {
+      var ci = document.createElement('img');
+      ci.className = 'cv-logo'; ci.src = clogo; ci.alt = '';
+      id.appendChild(ci);
+    } else {
+      var init = el('span', 'cv-logo cv-logo--txt',
+        String(client.name || '?').trim().split(/\s+/).slice(0, 2)
+          .map(function (w) { return w[0]; }).join('').toUpperCase());
+      init.style.background = client.color || 'var(--accent)';
+      init.style.color = onColor(client.color);
+      id.appendChild(init);
+    }
+    id.appendChild(el('span', 'cv-client', client.name));
+    inner.appendChild(id);
+
+    bar.appendChild(inner);
+    return bar;
+  }
+
+  function head() {
+    var wrap = el('div', 'cv-head');
+    var items = visibleItems();
+    var done = items.filter(function (i) { return i.apprStato === 'approvato'; }).length;
+
+    /* The month, set as the title of the document — this IS the September
+       plan, and that should land before anything else. */
+    var parts = month.split(' ');
+    var block = el('div', 'cv-month-block');
+    var h1 = el('h1', 'cv-month');
+    h1.appendChild(document.createTextNode(parts[0] + ' '));
+    h1.appendChild(el('b', null, 'PED'));
+    block.appendChild(h1);
+    block.appendChild(el('div', 'cv-year', parts[1] + ' · Piano editoriale'));
+    wrap.appendChild(block);
+
+    if (view !== 'ugc' && items.length) {
+      var counter = el('div', 'cv-counter');
+      var count = el('div', 'cv-count');
+      count.appendChild(el('b', null, String(done).padStart(2, '0')));
+      count.appendChild(el('span', null, '/'));
+      count.appendChild(document.createTextNode(String(items.length).padStart(2, '0')));
+      counter.appendChild(count);
+
+      var CELLS = 18;
+      var filled = Math.round((done / items.length) * CELLS);
+      var bar = el('div', 'cv-bar');
+      bar.appendChild(el('b', null, '█'.repeat(filled)));
+      bar.appendChild(document.createTextNode('░'.repeat(CELLS - filled)));
+      counter.appendChild(bar);
+      counter.appendChild(el('div', 'cv-count-lbl', 'Approvati'));
+      wrap.appendChild(counter);
+
+      /* Screen-reader / test hook for the same ratio. */
+      var sr = el('div', 'cv-progress');
+      sr.style.cssText = 'position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)';
+      sr.appendChild(el('span', null, done + ' / ' + items.length + ' approvati'));
+      wrap.appendChild(sr);
+    }
+
+    var controls = el('div', 'cv-controls');
+
+    var hasUgc = !!(S.get('pedPlans') || {})[client.id];
+    if (hasUgc) {
+      var seg = el('div', 'cv-seg');
+      [['preview', 'Contenuti'], ['ugc', 'UGC']].forEach(function (v) {
+        var b = el('button', null, v[1]);
+        b.setAttribute('aria-pressed', String(view === v[0]));
+        b.onclick = function () { view = v[0]; render(); };
+        seg.appendChild(b);
+      });
+      controls.appendChild(seg);
+    }
+
+    if (view === 'preview' && accounts.length > 1) {
+      var accSeg = el('div', 'cv-seg');
+      accounts.forEach(function (a, i) {
+        var b = el('button', null, a.platform);
+        b.setAttribute('aria-pressed', String(i === accIdx));
+        b.onclick = function () { accIdx = i; render(); };
+        accSeg.appendChild(b);
+      });
+      controls.appendChild(accSeg);
+    }
+
+    if (view === 'preview') controls.appendChild(monthSelect());
+    wrap.appendChild(controls);
+    return wrap;
+  }
+
+  /* Any month, any year. This was a <select> listing a hard-coded 2025-2028
+     as 48 rows — a scroll list to pick one of twelve things, and a range that
+     would quietly expire. The picker is a year stepper over a twelve-month
+     grid: unbounded in both directions, and nothing to maintain as time
+     passes. Months that already hold content carry a dot. */
+  function monthSelect() {
+    var acc = currentAccount();
+    return MonthPicker.create({
+      value: month,
+      hasContent: function (label) {
+        if (!acc) return false;
+        var feed = S.getFeed(acc.id, label) || [];
+        var story = S.getStories(acc.id, label) || [];
+        return feed.some(function (i) { return (i.apprStato || 'bozza') !== 'bozza'; })
+            || story.length > 0;
+      },
+      onPick: function (val) { month = val; render(); },
+    });
+  }
+
+  function gridPanel() {
+    var acc = currentAccount();
+    var pf = platform((acc || {}).platform);
+    var grid = el('div', 'cv-grid');
+    grid.style.setProperty('--cols', pf.cols);
+
+    var items = visibleItems();
+    if (!items.length) {
+      grid.appendChild(el('div', 'cv-empty', 'Nessun contenuto per ' + month));
+      return grid;
+    }
+    items.forEach(function (item, i) { grid.appendChild(postCard(item, i, acc)); });
+    return grid;
+  }
+
+  function postCard(item, index, acc) {
+    var stato = item.apprStato || 'bozza';
+    var card = el('div', 'cv-post');
+    card.dataset.stato = stato;
+    if (item.sponsored) card.classList.add('is-spon');
+
+    var media = el('div', 'cv-media');
+    media.style.aspectRatio = ratioFor(item, acc, 'grid');
+    var img = document.createElement('img');
+    img.alt = item.copy ? item.copy.slice(0, 80) : 'Contenuto del ' + (item.date || '');
+    img.loading = 'lazy';
+    img.onerror = function () { img.classList.add('is-broken'); };
+    var url = safeUrl(item.url || item.externalUrl);
+    if (url) img.src = url; else img.classList.add('is-broken');
+    media.appendChild(img);
+    media.onclick = function () { openPost(index); };
+
+    if (item.sponsored) {
+      var sp = el('span', 'cv-spon');
+      sp.appendChild(el('i'));
+      sp.appendChild(document.createTextNode('Sponsor'));
+      media.appendChild(sp);
+    }
+    var shift = item.sponsored ? ' cv-mark-tr--shift' : '';
+    if (item.type === 'carousel') {
+      media.appendChild(el('span', 'cv-mark-tr' + shift,
+        'Car ' + ((item.slides && item.slides.length) || '')));
+    } else if (item.type === 'reel') {
+      media.appendChild(el('span', 'cv-mark-tr' + shift, 'Reel'));
+      media.appendChild(el('span', 'cv-play'));
+    }
+    if (item.date) media.appendChild(el('span', 'cv-mark-bl', fmtDate(item.date)));
+    card.appendChild(media);
+
+    var meta = el('div', 'cv-meta');
+    if (item.copy) meta.appendChild(el('div', 'cv-copy', item.copy));
+    if (item.pilastro) {
+      var pill = el('div', 'cv-pillar');
+      pill.appendChild(el('i'));
+      pill.appendChild(document.createTextNode(item.pilastro));
+      meta.appendChild(pill);
+    }
+    if (item.clientNote) {
+      var note = el('div', 'cv-note');
+      note.appendChild(el('b', null, 'La tua richiesta'));
+      note.appendChild(document.createTextNode(item.clientNote));
+      meta.appendChild(note);
+    }
+    card.appendChild(meta);
+
+    if (stato === 'approvato') {
+      card.appendChild(el('div', 'cv-done', TOKEN.approvato));
+    } else if (stato === 'revisione') {
+      card.appendChild(el('div', 'cv-pending', TOKEN.revisione));
+    } else {
+      var actions = el('div', 'cv-actions');
+      var rev = el('button', 'cv-btn', 'Modifica');
+      rev.onclick = function () { openRevision(index); };
+      var ok = el('button', 'cv-btn primary', 'Approva');
+      ok.onclick = function () { approve(index); };
+      actions.appendChild(rev);
+      actions.appendChild(ok);
+      card.appendChild(actions);
+    }
+    return card;
+  }
+
+  /* ══ PLATFORM POST VIEW ═════════════════════════════════════════════════
+     A mock of the published post, not a lightbox. Instagram desktop puts the
+     media left and the caption in a right rail under the handle; Facebook and
+     LinkedIn stack header, caption, media. Approving the layout you will
+     actually get is the point of the whole page. */
+
+  var IC = {
+    heart: '<path d="M12 21s-8-4.9-8-10.4A4.6 4.6 0 0112 7a4.6 4.6 0 018 3.6C20 16.1 12 21 12 21z"/>',
+    comment: '<path d="M21 11.5a8.4 8.4 0 01-9 8.4 9 9 0 01-3.9-.9L3 21l1.9-4.6A8.4 8.4 0 013 11.5a9 9 0 0118 0z"/>',
+    send: '<path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/>',
+    save: '<path d="M19 21l-7-5-7 5V4a1 1 0 011-1h12a1 1 0 011 1z"/>',
+  };
+
+  function avatarFor(acc) {
+    var a = el('span', 'pv-av');
+    var logo = safeUrl(client.logo);
+    if (logo) {
+      var img = document.createElement('img');
+      img.src = logo; img.alt = '';
+      img.style.cssText = 'width:100%;height:100%;border-radius:50%;object-fit:cover';
+      a.appendChild(img);
+    } else {
+      a.textContent = String(client.name || '?').trim()[0].toUpperCase();
+      a.style.background = client.color || '#333';
+      a.style.color = onColor(client.color);
+    }
+    return a;
+  }
+
+  function handleFor(acc) {
+    if (!acc) return client.name;
+    return acc.handle || acc.name || client.name;
+  }
+
+  function openPost(index) {
+    var items = visibleItems();
+    pvItem = items[index];
+    if (!pvItem) return;
+    pvItems = (pvItem.type === 'carousel' && pvItem.slides && pvItem.slides.length)
+      ? pvItem.slides.map(function (s) { return { url: s.url || s.externalUrl, copy: s.copy }; })
+      : [{ url: pvItem.url || pvItem.externalUrl, copy: '' }];
+    pvIdx = 0;
+    document.getElementById('pv').classList.add('open');
+    paintPost();
+  }
+
+  function paintPost() {
+    var acc = currentAccount();
+    var pf = platform((acc || {}).platform);
+    var mount = document.getElementById('pv-mount');
+    mount.textContent = '';
+    document.getElementById('pv-plat').textContent =
+      pf.label + ' · anteprima ' + (pf.layout === 'ig' ? 'desktop' : 'feed');
+
+    var card = el('div', 'pv-card' + (pf.layout === 'ig' ? '' : ' pv-card--stack'));
+
+    var media = el('div', 'pv-media');
+    media.style.aspectRatio = ratioFor(pvItem, acc, 'detail');
+    var cur = pvItems[pvIdx] || {};
+
+    /* A reel plays. Muted and looping so it behaves the way the platforms
+       autoplay one, with controls because this is a review surface and the
+       client needs to scrub. Falls back to the poster when no edit is
+       attached yet — a reel is planned before it is shot. */
+    var vsrc = pvItem.type === 'reel' ? safeVideoUrl(pvItem.videoUrl) : '';
+    if (vsrc) {
+      var vid = document.createElement('video');
+      vid.src = vsrc;
+      vid.poster = safeUrl(cur.url) || '';
+      vid.muted = true;
+      vid.loop = true;
+      vid.playsInline = true;
+      vid.controls = true;
+      vid.setAttribute('muted', '');
+      vid.setAttribute('playsinline', '');
+      vid.onerror = function () { vid.style.opacity = '.25'; };
+      media.appendChild(vid);
+      /* Autoplay can be refused; a rejected promise is not an error here. */
+      var pr = vid.play();
+      if (pr && pr.catch) pr.catch(function () {});
+    } else {
+      var img = document.createElement('img');
+      img.src = safeUrl(cur.url) || '';
+      img.alt = pvItem.copy ? pvItem.copy.slice(0, 90) : '';
+      img.onerror = function () { img.style.opacity = '.25'; };
+      media.appendChild(img);
+      if (pvItem.type === 'reel') media.appendChild(el('span', 'cv-play'));
+    }
+    if (pvItems.length > 1) {
+      var dots = el('div', 'pv-dots');
+      pvItems.forEach(function (_, i) {
+        var d = el('i'); if (i === pvIdx) d.className = 'on';
+        dots.appendChild(d);
+      });
+      media.appendChild(dots);
+    }
+
+    var header = el('div', pf.layout === 'ig' ? 'pv-hd' : 'pv-fb-hd');
+    var av = avatarFor(acc);
+    if (pf.layout === 'ig') av.classList.add('pv-av--ring');
+    header.appendChild(av);
+    var who = el('div');
+    who.appendChild(el('div', 'pv-user', handleFor(acc)));
+    who.appendChild(el('div', 'pv-sub',
+      pf.layout === 'ig' ? (client.name || '') : longDate(pvItem.date)));
+    header.appendChild(who);
+    header.appendChild(el('span', 'pv-more', '···'));
+
+    var caption = el('div', 'pv-caption');
+    caption.appendChild(el('b', null, handleFor(acc)));
+    caption.appendChild(document.createTextNode(pvItem.copy || ''));
+
+    if (pf.layout === 'ig') {
+      /* Instagram desktop: media left, caption rail right. */
+      card.appendChild(media);
+      var side = el('div', 'pv-side');
+      side.appendChild(header);
+      var body = el('div', 'pv-body');
+      body.appendChild(caption);
+      if (cur.copy) {
+        var sc = el('div', 'pv-slide-copy', cur.copy);
+        body.appendChild(sc);
+      }
+      side.appendChild(body);
+      if (pvItem.sponsored) side.appendChild(el('div', 'pv-spon-note', 'Sponsorizzato'));
+      var acts = el('div', 'pv-actions');
+      var icons = el('div', 'pv-icons');
+      [IC.heart, IC.comment, IC.send].forEach(function (d) { icons.appendChild(svg(d)); });
+      var sp = svg(IC.save); sp.classList.add('sp'); icons.appendChild(sp);
+      acts.appendChild(icons);
+      acts.appendChild(el('div', 'pv-likes', 'Piace a molti'));
+      acts.appendChild(el('div', 'pv-date', longDate(pvItem.date)));
+      side.appendChild(acts);
+      card.appendChild(side);
+    } else {
+      /* Facebook / LinkedIn / others: header, caption, then media. */
+      card.appendChild(header);
+      if (pvItem.sponsored) card.appendChild(el('div', 'pv-spon-note', 'Sponsorizzato'));
+      if (pvItem.copy) card.appendChild(el('div', 'pv-fb-copy', pvItem.copy));
+      card.appendChild(media);
+      var fa = el('div', 'pv-fb-actions');
+      ['Mi piace', 'Commenta', 'Condividi'].forEach(function (t) {
+        fa.appendChild(el('span', null, t));
+      });
+      card.appendChild(fa);
+    }
+
+    mount.appendChild(card);
+    var multi = pvItems.length > 1;
+    document.getElementById('pv-prev').style.display = multi ? 'flex' : 'none';
+    document.getElementById('pv-next').style.display = multi ? 'flex' : 'none';
+  }
+
+  function closePost() {
+    var v = document.querySelector('.pv-media video');
+    if (v) { try { v.pause(); } catch (e) {} }
+    document.getElementById('pv').classList.remove('open');
+  }
+  function pvStep(d) {
+    if (!pvItems.length) return;
+    pvIdx = (pvIdx + d + pvItems.length) % pvItems.length;
+    paintPost();
+  }
+
+  /* ── Actions ─────────────────────────────────────────────────────────── */
+
+  function approve(index) {
+    writeItem(index, {
+      apprStato: 'approvato',
+      apprBy: (client.referente && client.referente.nome) || 'Cliente',
+      apprDate: new Date().toISOString(),
+    });
+    toast('Contenuto approvato');
+    render();
+  }
+
+  function openRevision(index) {
+    pendingRevision = index;
+    var ta = document.getElementById('cv-modal-text');
+    var existing = visibleItems()[index];
+    ta.value = (existing && existing.clientNote) || '';
+    document.getElementById('cv-modal').classList.add('open');
+    setTimeout(function () { ta.focus(); }, 40);
+  }
+  function closeRevision() {
+    pendingRevision = null;
+    document.getElementById('cv-modal').classList.remove('open');
+  }
+  function sendRevision() {
+    if (pendingRevision == null) return;
+    var text = document.getElementById('cv-modal-text').value.trim();
+    if (!text) { toast('Scrivi cosa vorresti cambiare'); return; }
+    var current = visibleItems()[pendingRevision];
+    writeItem(pendingRevision, {
+      apprStato: 'revisione',
+      clientNote: text, apprNote: text,
+      clientName: (client.referente && client.referente.nome)
+        ? client.referente.nome.split(' ')[0] : 'Cliente',
+      apprRevisions: ((current && current.apprRevisions) || 0) + 1,
+      apprDate: new Date().toISOString(),
+    });
+    closeRevision();
+    toast('Richiesta inviata al team');
+    render();
+  }
+
+  /* ── UGC ─────────────────────────────────────────────────────────────── */
+
+  function ugcPanel() {
+    var wrap = el('div', 'cv-ugc');
+    var plans = (S.get('pedPlans') || {})[client.id] || {};
+    var keys = Object.keys(plans);
+    if (!keys.length) {
+      wrap.appendChild(el('div', 'cv-empty', 'Nessun piano UGC disponibile'));
+      return wrap;
+    }
+    var COLORS = {
+      raccolto: 'var(--text-3)', selezionato: 'var(--info-text)',
+      adattato: 'var(--warning-text)', approvato: 'var(--accent)',
+      autonoma: 'var(--rule-2)',
+    };
+    keys.forEach(function (m) {
+      wrap.appendChild(el('h2', 'cv-ugc-month', m));
+      var grid = el('div', 'cv-ugc-grid');
+      (plans[m].slots || []).forEach(function (slot) {
+        var card = el('div', 'cv-slot');
+        card.appendChild(el('div', 'cv-slot-date', fmtDate(slot.date || '')));
+        card.appendChild(el('div', 'cv-slot-brief', slot.brief || '—'));
+        var meta = el('div', 'cv-slot-meta');
+        var chip = el('span', 'cv-chip');
+        var sw = el('i');
+        sw.style.background = COLORS[slot.ugcStato] || COLORS.autonoma;
+        chip.appendChild(sw);
+        chip.appendChild(document.createTextNode(slot.ugcStato || 'autonoma'));
+        meta.appendChild(chip);
+        if (slot.creator) meta.appendChild(el('span', 'cv-creator', slot.creator));
+        card.appendChild(meta);
+        grid.appendChild(card);
+      });
+      wrap.appendChild(grid);
+    });
+    return wrap;
+  }
+
+  /* ── Toast ───────────────────────────────────────────────────────────── */
+
+  var toastTimer = null;
+  function toast(msg) {
+    var t = document.getElementById('cv-toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { t.classList.remove('show'); }, 2400);
+  }
+
+  /* ── Wiring ──────────────────────────────────────────────────────────── */
+
+  document.getElementById('pv-close').onclick = closePost;
+  document.getElementById('pv-prev').onclick  = function () { pvStep(-1); };
+  document.getElementById('pv-next').onclick  = function () { pvStep(1); };
+  document.getElementById('pv').onclick = function (e) {
+    if (e.target === e.currentTarget) closePost();
+  };
+  document.getElementById('cv-modal-cancel').onclick = closeRevision;
+  document.getElementById('cv-modal-send').onclick   = sendRevision;
+  document.getElementById('cv-modal').onclick = function (e) {
+    if (e.target === e.currentTarget) closeRevision();
+  };
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') { closePost(); closeRevision(); }
+    if (document.getElementById('pv').classList.contains('open')) {
+      if (e.key === 'ArrowLeft')  pvStep(-1);
+      if (e.key === 'ArrowRight') pvStep(1);
+    }
+  });
+
+  S.subscribe(function (e) {
+    if (e.detail && e.detail.external && (e.collection === 'feeds' || e.collection === 'clients')) {
+      if (client) { client = S.getClient(client.id) || client; applyAccent(client.color); }
+      render();
+    }
+  });
+
+  init();
+})();
+</script>
+</body>
+</html>

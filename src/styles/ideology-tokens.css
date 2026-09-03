@@ -1,0 +1,325 @@
+/*
+ * IDEOLOGY CREATIVE STUDIO — Design Tokens
+ *
+ * Brand values taken from ideology.it (verified against the live stylesheet,
+ * not guessed): #F2C700 signature yellow, #101010 page black, #282828 surface,
+ * #2DA7A7 teal and #e40e49 red as secondary accents. Typefaces are the studio's
+ * own, vendored into /assets/fonts rather than hotlinked from the WordPress site.
+ *
+ * DARK-FIRST. Unlike the tool this was extracted from, :root IS the dark theme
+ * here — that matches ideology.it, and content grids read better on black.
+ * [data-theme="light"] is the override, not the default.
+ *
+ * NAMING — read this before adding a token.
+ * Two layers live in this file on purpose:
+ *   1. --brand-* / --bg / --surface-* / --text-*  → the real Ideology palette.
+ *      New code should only ever use these.
+ *   2. --green*, --magenta, --amber ...           → compatibility aliases.
+ *      The extracted stylesheet has ~2400 var() calls written against the old
+ *      studio's names, where --green was the brand accent. Rather than rewrite
+ *      every one of them (and risk missing some in a 213KB file), the old names
+ *      are kept and now resolve to Ideology yellow. They are aliases, not
+ *      colors — never give one its own literal value, and don't introduce new
+ *      uses of them.
+ */
+
+/* ── Typefaces ─────────────────────────────────────────────────────────────
+   Vendored locally so the prototype runs with no network. Every face declares
+   a real fallback stack: these are licensed retail fonts, and a missing file
+   should degrade to something sane rather than to Times.                    */
+
+@font-face {
+  font-family: 'PP Neue Montreal';
+  src: url('/assets/fonts/PPNeueMontreal-Book.woff2') format('woff2'),
+       url('/assets/fonts/PPNeueMontreal-Book.woff') format('woff');
+  font-weight: 300 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Gustavo';
+  src: url('/assets/fonts/Gustavo-Regular.woff2') format('woff2'),
+       url('/assets/fonts/Gustavo-Regular.woff') format('woff');
+  font-weight: 400 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Display face for the wordmark and big numerals only — it is a raster/blended
+   grotesk and is unreadable below roughly 18px. Never set it on body copy. */
+@font-face {
+  font-family: 'FK Raster Grotesk';
+  src: url('/assets/fonts/FKRasterGrotesk-Blended.woff2') format('woff2'),
+       url('/assets/fonts/FKRasterGrotesk-Blended.woff') format('woff');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+:root {
+  color-scheme: dark;
+
+  /* ══ IDEOLOGY BRAND ══════════════════════════════════════════════════════
+     Yellow is the whole identity. It carries every primary action, active
+     state, focus ring and selection. Because it is a high-luminance yellow,
+     text ON the brand color is always --brand-on (near-black) — white on
+     #F2C700 fails contrast badly and must never appear. */
+  --brand:        #F2C700;   /* signature yellow — primary accent           */
+  --brand-hi:     #ffd91f;   /* hover / raised state                        */
+  --brand-dk:     #d9b200;   /* pressed state, borders on light surfaces    */
+  --brand-on:     #101010;   /* text/icons placed on top of --brand         */
+  --brand-tint:   rgba(242, 199, 0, .12);  /* selected row, subtle fill     */
+  --brand-tint-2: rgba(242, 199, 0, .22);  /* hover on an already-tinted el */
+  --brand-ring:   rgba(242, 199, 0, .45);  /* focus ring                    */
+
+  /* Secondary accents — from the same source palette. Used for categorical
+     distinction (platform badges, pillar tags), never for primary actions. */
+  --teal:      #2DA7A7;
+  --teal-hi:   #00AFAF;
+  --teal-tint: rgba(45, 167, 167, .14);
+  --coral:     #f37c7b;
+  --crimson:   #e40e49;
+
+  /* ══ SURFACES ════════════════════════════════════════════════════════════
+     Four steps, deliberately close together. On a black UI, large jumps in
+     surface value read as dirt rather than as depth. Elevation is carried by
+     borders here, not by big luminance steps. */
+  --bg:         #101010;   /* page ground — ideology.it's own black         */
+  --surface:    #191919;   /* cards, modals, sidebar                        */
+  --surface-lt: #232323;   /* hover rows, inputs                            */
+  --surface-hi: #282828;   /* raised / active — the site's own grey         */
+  --overlay:    rgba(0, 0, 0, .72);  /* modal scrim                         */
+
+  --border:        #2e2e2e;
+  --border-lt:     #242424;
+  --border-strong: #3d3d3d;
+
+  /* ══ TEXT ════════════════════════════════════════════════════════════════
+     Not pure white on top: #f2f2f2 against #101010 is ~18:1, plenty, and it
+     removes the glare that pure #fff has on a black ground. */
+  --text:   #f2f2f2;   /* primary                                          */
+  --text-2: #a3a3a3;   /* secondary — labels, meta                         */
+  --text-3: #6e6e6e;   /* tertiary — placeholders, disabled                */
+
+  --placeholder: #5a5a5a;
+
+  /* ══ SEMANTIC STATUS ═════════════════════════════════════════════════════
+     Content workflow states. Tuned for a dark ground: the -bg values are
+     desaturated and very dark, the -text values are the ones doing the work.
+     NOTE: warning and the brand are both yellow. That is a real collision.
+     Warning here is deliberately pushed orange (#f59e0b) so a warning badge
+     never reads as a brand element sitting next to a yellow button. */
+  --success-bg:     #0d2318;
+  --success-border: #1c4d33;
+  --success-text:   #4ade80;
+
+  --warning-bg:     #2a1c00;
+  --warning-border: #573a00;
+  --warning-text:   #f59e0b;
+
+  --danger-bg:      #2a0d14;
+  --danger-border:  #5c1526;
+  --danger-text:    #ff5a7a;
+
+  --info-bg:        #06222a;
+  --info-border:    #0d4a57;
+  --info-text:      #35c9d6;
+
+  /* ══ TYPOGRAPHY ══════════════════════════════════════════════════════════ */
+  --font:         'PP Neue Montreal', -apple-system, BlinkMacSystemFont, 'Segoe UI', Inter, sans-serif;
+  --font-display: 'Gustavo', 'PP Neue Montreal', -apple-system, 'Segoe UI', sans-serif;
+  --font-mark:    'FK Raster Grotesk', 'Gustavo', monospace;  /* wordmark only */
+
+  --fs-xs:   11px;
+  --fs-sm:   13px;
+  --fs-base: 15px;
+  --fs-md:   18px;
+  --fs-lg:   28px;
+
+  --lh-tight: 1.25;
+  --lh-base:  1.5;
+  --lh-relaxed: 1.7;
+
+  --ls-tight:  -.02em;
+  --ls-normal: 0em;
+  --ls-wide:   .06em;
+
+  /* ══ GEOMETRY ════════════════════════════════════════════════════════════
+     Tighter radii than the source tool. Ideology's own design language is
+     hard-edged; 8px everywhere read too soft against the wordmark. */
+  --r:      6px;
+  --rs:     4px;
+  --r-xs:   3px;
+  --r-pill: 99px;
+  --bw:     1px;
+
+  --sp-1: 4px;  --sp-2: 8px;  --sp-3: 12px; --sp-4: 16px;
+  --sp-5: 20px; --sp-6: 24px; --sp-8: 32px;
+
+  /* ══ MOTION ══════════════════════════════════════════════════════════════ */
+  --t-fast: .1s ease;
+  --t-base: .15s ease;
+  --t-slow: .25s ease;
+  --t:      var(--t-base);
+
+  /* ══ SHADOWS ═════════════════════════════════════════════════════════════
+     On a black UI a drop shadow is nearly invisible, so these carry a hairline
+     top highlight as well — that is what actually reads as elevation here. */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, .5);
+  --shadow-md: 0 4px 14px rgba(0, 0, 0, .55);
+  --shadow-lg: 0 12px 32px rgba(0, 0, 0, .6);
+  --shadow-xl: 0 24px 56px rgba(0, 0, 0, .7), 0 8px 16px rgba(0, 0, 0, .5);
+
+  /* ══ LAYOUT CHROME ═══════════════════════════════════════════════════════ */
+  --topbar:           56px;
+  --sidebar:          56px;
+  --sidebar-expanded: 220px;
+
+  /* ══ COMPAT ALIASES ══════════════════════════════════════════════════════
+     Everything below exists only so the extracted stylesheet keeps resolving.
+     Do not use these in new code — use the brand tokens above.
+     The old tool's accent was --green (a neon green); it is now Ideology
+     yellow, which is why --green-lt is a yellow tint and not a green one. */
+  --green:      var(--brand);
+  --green-dk:   var(--brand-dk);
+  --green-lt:   var(--brand-tint);
+  --green-mid:  var(--brand-tint-2);
+  --green-text: var(--brand-on);
+
+  --amber:    var(--brand);
+  --amber-dk: var(--brand-dk);
+  --amber-lt: var(--brand-tint);
+
+  --magenta:    var(--crimson);
+  --magenta-lt: rgba(228, 14, 73, .14);
+
+  --teal-lt: var(--teal-tint);
+  --teal-dk: var(--teal-hi);
+
+  --red:    var(--danger-text);
+  --red-lt: var(--danger-bg);
+  --red-dk: var(--danger-border);
+
+  --blue:    var(--info-bg);
+  --blue-dk: var(--info-text);
+  --blue-lt: var(--info-bg);
+
+  --pink:    var(--coral);
+  --pink-lt: rgba(243, 124, 123, .14);
+  --pink-dk: var(--crimson);
+
+  --surface-0: var(--bg);
+  --surface-1: var(--surface);
+  --surface-2: var(--surface-lt);
+
+  --text-primary:   var(--text);
+  --text-secondary: var(--text-2);
+  --text-muted:     var(--text-3);
+  --text-accent:    var(--brand);
+
+  --border-accent:  var(--brand);
+  --border-success: var(--success-border);
+  --border-warning: var(--warning-border);
+  --border-danger:  var(--danger-border);
+
+  --bg-accent:  var(--brand-tint);
+  --bg-success: var(--success-bg);
+  --bg-warning: var(--warning-bg);
+  --bg-danger:  var(--danger-bg);
+
+  --font-sans: var(--font);
+  --topbar-bg: var(--surface);
+}
+
+/* ── Light theme ───────────────────────────────────────────────────────────
+   The override, not the default. Kept because the client-facing portal opts
+   into it (client content photographs better on a light ground, the way the
+   real platforms show it) and because long editing sessions in daylight are
+   easier here. Only tokens whose ROLE changes are redefined — everything else
+   inherits from :root, so a token added above needs no edit here unless it
+   encodes a light/dark decision.
+
+   The brand yellow does NOT change between themes. What changes is what may
+   sit on top of it: still --brand-on, still near-black, in both themes. */
+[data-theme="light"] {
+  color-scheme: light;
+
+  --bg:         #ffffff;
+  --surface:    #ffffff;
+  --surface-lt: #f5f5f5;
+  --surface-hi: #ededed;
+  --overlay:    rgba(16, 16, 16, .45);
+
+  --border:        #e4e4e4;
+  --border-lt:     #f0f0f0;
+  --border-strong: #cfcfcf;
+
+  --text:   #101010;
+  --text-2: #5c5c5c;
+  /* #6b6b6b, not #8a8a8a. --text-3 carries the 10px uppercase micro-labels
+     that this design uses everywhere, and at #8a8a8a on white those measured
+     ~3.5:1 — under the 4.5:1 needed for small text. This clears it. */
+  --text-3: #6b6b6b;
+
+  --placeholder: #a3a3a3;
+
+  /* Yellow on white is weak for anything small — text and thin borders switch
+     to the darker shade, while fills keep the true brand yellow. */
+  --brand-dk:   #b89600;
+  --brand-tint:   rgba(242, 199, 0, .18);
+  --brand-tint-2: rgba(242, 199, 0, .32);
+
+  --success-bg:     #f0fdf4;
+  --success-border: #bbf7d0;
+  --success-text:   #166534;
+
+  --warning-bg:     #fffaeb;
+  --warning-border: #fde68a;
+  --warning-text:   #92400e;
+
+  --danger-bg:      #fff5f5;
+  --danger-border:  #fca5a5;
+  --danger-text:    #c81e3c;
+
+  --info-bg:        #ecfeff;
+  --info-border:    #a5f3fc;
+  --info-text:      #0e7490;
+
+  --shadow-sm: 0 1px 3px rgba(16, 16, 16, .07);
+  --shadow-md: 0 4px 12px rgba(16, 16, 16, .09);
+  --shadow-lg: 0 12px 28px rgba(16, 16, 16, .12);
+  --shadow-xl: 0 24px 48px rgba(16, 16, 16, .14), 0 8px 16px rgba(16, 16, 16, .08);
+
+  /* Aliases that encoded a dark-ground assumption and must flip with it. */
+  --text-accent:  var(--brand-dk);
+  --border-accent: var(--brand-dk);
+}
+
+/* ── Selection & focus ─────────────────────────────────────────────────────
+   Brand-carrying details that are easy to forget and very visible when wrong. */
+::selection {
+  background: var(--brand);
+  color: var(--brand-on);
+}
+
+:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+  border-radius: var(--r-xs);
+}
+
+/* Scrollbars — the default light scrollbar on a black UI is a bright seam
+   down the side of every panel. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-strong) transparent;
+}
+*::-webkit-scrollbar { width: 10px; height: 10px; }
+*::-webkit-scrollbar-track { background: transparent; }
+*::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border: 2px solid var(--bg);
+  border-radius: var(--r-pill);
+}
+*::-webkit-scrollbar-thumb:hover { background: var(--text-3); }
