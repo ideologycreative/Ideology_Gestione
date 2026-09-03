@@ -157,6 +157,7 @@ window.Shell = (function () {
     })));
 
     hd.appendChild(h('div', { cls: 'seg seg--view' }, [
+      { id: 'list',     label: 'Tutti',      ic: 'rows' },
       { id: 'board',    label: 'Pipeline',   ic: 'board' },
       { id: 'grid',     label: 'Griglia',    ic: 'grid' },
       { id: 'calendar', label: 'Calendario', ic: 'calendar' },
@@ -246,7 +247,7 @@ window.Shell = (function () {
         run: function () { window.open(A.portalUrl(c), '_blank', 'noopener'); } });
     });
     if (A.state.section === 'content' && A.state.routeId) {
-      [['board','Pipeline'],['grid','Griglia'],['calendar','Calendario']].forEach(function (v) {
+      [['list','Tutti'],['board','Pipeline'],['grid','Griglia'],['calendar','Calendario']].forEach(function (v) {
         out.push({ group: 'Vista', label: v[1], run: function () { A.set({ view: v[0] }, 'view'); } });
       });
       out.push({ group: 'Azione', label: 'Nuovo contenuto',
@@ -417,7 +418,7 @@ window.Shell = (function () {
 
     var saved = S.getSetting('ui', {}) || {};
     A.state.month = saved.month || A.thisMonth();
-    A.state.view  = saved.view  || 'board';
+    A.state.view  = saved.view  || 'list';
     A.state.kind  = saved.kind  || 'feed';
     A.state.accountId = saved.accountId || null;
 
@@ -466,9 +467,10 @@ window.Shell = (function () {
          which is exactly the kind of surprise a global shortcut should not
          produce. */
       if (A.state.section !== 'content' || !A.state.routeId) return;
-      if (e.key === '1') A.set({ view: 'board' }, 'view');
-      if (e.key === '2') A.set({ view: 'grid' }, 'view');
-      if (e.key === '3') A.set({ view: 'calendar' }, 'view');
+      if (e.key === '1') A.set({ view: 'list' }, 'view');
+      if (e.key === '2') A.set({ view: 'board' }, 'view');
+      if (e.key === '3') A.set({ view: 'grid' }, 'view');
+      if (e.key === '4') A.set({ view: 'calendar' }, 'view');
       if (e.key === 'n') { e.preventDefault(); A.set({ selectedId: A.createItem({}) }, 'create'); }
       if (e.key === '[') A.set({ month: A.shiftMonth(-1), selectedId: null }, 'month');
       if (e.key === ']') A.set({ month: A.shiftMonth(1), selectedId: null }, 'month');

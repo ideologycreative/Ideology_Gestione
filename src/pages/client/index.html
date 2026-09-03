@@ -941,6 +941,12 @@ select.cv-sel:focus-visible { outline: 2px solid var(--accent); outline-offset: 
     if (item.type === 'carousel') {
       media.appendChild(el('span', 'cv-mark-tr' + shift,
         'Car ' + ((item.slides && item.slides.length) || '')));
+      /* The cover is always slide 1's poster — if that slide is itself a
+         clip, the cover needs the same play hint a reel gets, or opening it
+         to a playing video is a surprise. */
+      if (item.slides && item.slides[0] && item.slides[0].videoUrl) {
+        media.appendChild(el('span', 'cv-play'));
+      }
     } else if (item.type === 'reel') {
       media.appendChild(el('span', 'cv-mark-tr' + shift, 'Reel'));
       media.appendChild(el('span', 'cv-play'));
@@ -1020,8 +1026,10 @@ select.cv-sel:focus-visible { outline: 2px solid var(--accent); outline-offset: 
     pvItem = items[index];
     if (!pvItem) return;
     pvItems = (pvItem.type === 'carousel' && pvItem.slides && pvItem.slides.length)
-      ? pvItem.slides.map(function (s) { return { url: s.url || s.externalUrl, copy: s.copy }; })
-      : [{ url: pvItem.url || pvItem.externalUrl, copy: '' }];
+      ? pvItem.slides.map(function (s) {
+          return { url: s.url || s.externalUrl, videoUrl: s.videoUrl || '', copy: s.copy };
+        })
+      : [{ url: pvItem.url || pvItem.externalUrl, videoUrl: '', copy: '' }];
     pvIdx = 0;
     document.getElementById('pv').classList.add('open');
     paintPost();
@@ -1041,11 +1049,15 @@ select.cv-sel:focus-visible { outline: 2px solid var(--accent); outline-offset: 
     media.style.aspectRatio = ratioFor(pvItem, acc, 'detail');
     var cur = pvItems[pvIdx] || {};
 
-    /* A reel plays. Muted and looping so it behaves the way the platforms
-       autoplay one, with controls because this is a review surface and the
-       client needs to scrub. Falls back to the poster when no edit is
-       attached yet — a reel is planned before it is shot. */
-    var vsrc = pvItem.type === 'reel' ? safeVideoUrl(pvItem.videoUrl) : '';
+    /* A reel plays, and so does a carousel slide that carries its own clip —
+       a carousel can mix static and video slides, so this is decided per
+       slide, not once for the whole post. Muted and looping so it behaves
+       the way the platforms autoplay one, with controls because this is a
+       review surface and the client needs to scrub. Falls back to the
+       poster when no edit is attached yet — a reel is planned before it is
+       shot, and the poster is exactly what the grid already showed. */
+    var vsrc = pvItem.type === 'reel' ? safeVideoUrl(pvItem.videoUrl)
+      : pvItem.type === 'carousel' ? safeVideoUrl(cur.videoUrl) : '';
     if (vsrc) {
       var vid = document.createElement('video');
       vid.src = vsrc;
@@ -1067,7 +1079,9 @@ select.cv-sel:focus-visible { outline: 2px solid var(--accent); outline-offset: 
       img.alt = pvItem.copy ? pvItem.copy.slice(0, 90) : '';
       img.onerror = function () { img.style.opacity = '.25'; };
       media.appendChild(img);
-      if (pvItem.type === 'reel') media.appendChild(el('span', 'cv-play'));
+      if (pvItem.type === 'reel' || (pvItem.type === 'carousel' && cur.videoUrl)) {
+        media.appendChild(el('span', 'cv-play'));
+      }
     }
     if (pvItems.length > 1) {
       var dots = el('div', 'pv-dots');

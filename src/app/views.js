@@ -2,8 +2,14 @@
  * IDEOLOGY STUDIO — views
  * ═══════════════════════════════════════════════════════════════════════════
  *
- * Three lenses on one client-account-month. Each exports render(mount) and
+ * Four lenses on one client-account-month. Each exports render(mount) and
  * nothing else; the shell decides which one is mounted.
+ *
+ *   LIST      the default. Every post, in date order, first of the month to
+ *             last — the plan as a whole, not sliced by where it stands.
+ *             Bigger cards than the other views, with the status spelled out
+ *             on the frame, because this is the view for reading the month
+ *             at a glance rather than working one column at a time.
  *
  *   BOARD     the pipeline — bozza → in attesa → revisione → approvato.
  *             This is the view the old tool did not have, and the reason the
@@ -54,7 +60,9 @@ window.Views = (function () {
       box.appendChild(icon('image', 18));
     }
     if (item.type === 'carousel') {
-      box.appendChild(h('span', { cls: 'thumb-tag', text: 'CAR ' + ((item.slides || []).length || '') }));
+      var slide0HasVideo = !!(item.slides && item.slides[0] && item.slides[0].videoUrl);
+      box.appendChild(h('span', { cls: 'thumb-tag',
+        text: 'CAR ' + ((item.slides || []).length || '') + (slide0HasVideo ? ' ▶' : '') }));
     } else if (item.type === 'reel') {
       box.appendChild(h('span', { cls: 'thumb-tag', text: 'REEL' }));
     }
@@ -112,6 +120,63 @@ window.Views = (function () {
       document.body.classList.remove('is-dragging');
       el.classList.remove('is-ghost');
     });
+  }
+
+  /* ══ LIST (Tutti) ══════════════════════════════════════════════════════
+     Every post for the month, sorted by date rather than split into pipeline
+     columns — the view for "what does the whole month look like", where the
+     board is the view for "what needs doing right now". Cards run bigger
+     than the other views on purpose: this is the one place the image itself
+     is the point, not the workflow around it. */
+
+  function renderList(mount) {
+    var all = A.items().slice().sort(function (a, b) {
+      var da = a.date || '9999-99-99', db = b.date || '9999-99-99';
+      return da < db ? -1 : da > db ? 1 : 0;
+    });
+
+    if (!all.length) {
+      mount.appendChild(emptyState('Nessun contenuto in ' + A.state.month));
+      return;
+    }
+
+    var wrap = h('div', { cls: 'lgrid-wrap' });
+    wrap.appendChild(h('p', { cls: 'hint' },
+      ['Tutti i contenuti di ' + A.state.month + ', in ordine di data. Per lo stato a colonne usa Pipeline.']));
+
+    var grid = h('div', { cls: 'lgrid' });
+
+    all.forEach(function (item) {
+      var st = A.statusOf(item.apprStato);
+
+      var card = h('div', {
+        cls: 'lcard' + (A.state.selectedId === item.id ? ' is-sel' : '')
+               + (item.sponsored ? ' is-spon' : ''),
+        attrs: { tabindex: '0', role: 'button',
+                 'aria-label': (item.copy || 'Contenuto') + ' — ' + st.label + ' — ' + A.fmtDay(item.date) },
+        on: {
+          click: function () { selectItem(item.id); },
+          keydown: function (e) {
+            if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); selectItem(item.id); }
+          },
+        },
+      }, [
+        thumb(item, {}),
+        h('div', { cls: 'lcard-ft' }, [
+          h('div', { cls: 'lcard-meta' }, [
+            h('span', { cls: 'lcard-date', text: A.fmtDay(item.date) }),
+            h('span', { cls: 'lstatus', attrs: { 'data-s': item.apprStato || 'bozza' }, text: st.label }),
+          ]),
+          h('span', { cls: 'lcard-cap' + (item.copy ? '' : ' lcard-cap--empty'),
+                      text: item.copy || 'Senza caption' }),
+        ]),
+      ]);
+
+      grid.appendChild(card);
+    });
+
+    wrap.appendChild(grid);
+    mount.appendChild(wrap);
   }
 
   /* ══ BOARD ══════════════════════════════════════════════════════════════ */
@@ -341,7 +406,8 @@ window.Views = (function () {
     var v = A.state.view;
     if (v === 'grid')          renderGrid(mount);
     else if (v === 'calendar') renderCalendar(mount);
-    else                       renderBoard(mount);
+    else if (v === 'board')    renderBoard(mount);
+    else                       renderList(mount);
   }
 
   return { render: render, thumb: thumb };

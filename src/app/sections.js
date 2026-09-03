@@ -19,6 +19,16 @@ window.Sections = (function () {
   var A = window.App;
   var h = A.h, icon = A.icon;
 
+  /* Text commits rebuild the whole page (there is no partial re-render in
+     this app), which would otherwise blow the input away after every single
+     keystroke. Debouncing means the rebuild lands on a pause, not mid-word —
+     the same trade the inspector already makes for its own text fields. */
+  var editTimer = null;
+  function debounced(fn) {
+    clearTimeout(editTimer);
+    editTimer = setTimeout(fn, 260);
+  }
+
   /* ── Shared: a client tile ───────────────────────────────────────────────
      Used by both pickers. Carries the client's own colour and logo, because
      across five or fifteen clients the brand mark is what you actually
@@ -204,7 +214,10 @@ window.Sections = (function () {
 
     var name = h('input', {
       cls: 'input', attrs: { type: 'text', value: c.name || '', 'aria-label': 'Nome cliente' },
-      on: { input: function () { A.updateClient(c.id, { name: name.value }); } },
+      on: { input: function () {
+        var v = name.value;
+        debounced(function () { A.updateClient(c.id, { name: v }); });
+      } },
     });
     idCard.appendChild(fld('Nome azienda', name));
 
@@ -214,8 +227,29 @@ window.Sections = (function () {
     var SWATCHES = ['#F2C700', '#2DA7A7', '#e40e49', '#f37c7b', '#00AFAF', '#8B7BD8', '#4ADE80', '#a3a3a3'];
     var picker = h('input', {
       cls: 'color-native',
-      attrs: { type: 'color', value: c.color || '#F2C700', 'aria-label': 'Colore personalizzato' },
-      on: { input: function () { A.updateClient(c.id, { color: picker.value }); } },
+      attrs: { type: 'color', value: /^#[0-9a-f]{6}$/i.test(c.color || '') ? c.color : '#F2C700',
+               'aria-label': 'Colore personalizzato' },
+      on: { input: function () {
+        hexInput.value = picker.value;
+        hexInput.classList.remove('is-invalid');
+        A.updateClient(c.id, { color: picker.value });
+      } },
+    });
+    /* The picker's own swatch is a colour well, not a place to read or type a
+       code — this is the field that makes "the colour code works" literally
+       true: paste a brand hex here and it applies, live, once it is valid. */
+    var hexInput = h('input', {
+      cls: 'input hexinput',
+      attrs: { type: 'text', maxlength: '7', placeholder: '#RRGGBB',
+               'aria-label': 'Codice colore esadecimale', value: c.color || '#F2C700' },
+      on: { input: function () {
+        var v = hexInput.value.trim();
+        if (v && v[0] !== '#') v = '#' + v;
+        if (!/^#[0-9a-f]{6}$/i.test(v)) { hexInput.classList.add('is-invalid'); return; }
+        hexInput.classList.remove('is-invalid');
+        picker.value = v;
+        debounced(function () { A.updateClient(c.id, { color: v }); });
+      } },
     });
     idCard.appendChild(fld('Colore', h('div', { cls: 'swatches' },
       SWATCHES.map(function (hex) {
@@ -225,8 +259,8 @@ window.Sections = (function () {
           attrs: { 'aria-label': hex, title: hex },
           on: { click: function () { A.updateClient(c.id, { color: hex }); } },
         });
-      }).concat([picker])
-    )));
+      }).concat([picker, hexInput])
+    ), 'Un preset, il selettore, o incolla direttamente un codice esadecimale.'));
 
     /* Portal background. Two tiles rather than a toggle, because the choice
        is genuinely visual -- black ground vs white ground -- and a tile that
@@ -292,12 +326,71 @@ window.Sections = (function () {
     var note = h('textarea', {
       cls: 'input input--area', attrs: { rows: '3', 'aria-label': 'Note',
         placeholder: 'Tono di voce, vincoli, referente…' },
-      on: { input: function () { A.updateClient(c.id, { note: note.value }); } },
+      on: { input: function () {
+        var v = note.value;
+        debounced(function () { A.updateClient(c.id, { note: v }); });
+      } },
     });
     note.value = c.note || '';
     idCard.appendChild(fld('Note interne', note));
 
     grid.appendChild(idCard);
+
+    /* ── Categories ───────────────────────────────────────────────────────
+       What kind of content a post is — customer review, product, service,
+       niche, educational, before/after. Every client has its own mix, so
+       unlike the fixed fields above this list is entirely built by the
+       studio: add one, rename it, recolour it, or drop it. The chip that
+       applies a category lives in the post editor; this is where the set of
+       categories itself is defined. */
+    var catCard = h('section', { cls: 'card-panel card-panel--span' }, [
+      h('h2', { cls: 'panel-t', text: 'Categorie di contenuto' }),
+      h('p', { cls: 'panel-sub',
+        text: 'Che tipo di contenuto è: recensione cliente, prodotto, servizio, educational, prima/dopo… Appaiono come chip su ogni post.' }),
+    ]);
+
+    A.pillars(c.id).forEach(function (cat) {
+      var row = h('div', { cls: 'cat-row' });
+
+      var sw = h('input', {
+        cls: 'color-native color-native--sm',
+        attrs: { type: 'color', value: /^#[0-9a-f]{6}$/i.test(cat.color || '') ? cat.color : '#2DA7A7',
+                 'aria-label': 'Colore categoria' },
+        on: { input: function () { A.updatePillar(c.id, cat.id, { color: sw.value }); } },
+      });
+
+      var nm = h('input', {
+        cls: 'input', attrs: { type: 'text', value: cat.name || '', 'aria-label': 'Nome categoria' },
+        on: { input: function () {
+          var v = nm.value;
+          debounced(function () { A.updatePillar(c.id, cat.id, { name: v }); });
+        } },
+      });
+
+      row.appendChild(sw);
+      row.appendChild(nm);
+      row.appendChild(h('button', {
+        cls: 'iconbtn', attrs: { 'aria-label': 'Elimina categoria', title: 'Elimina categoria' },
+        on: { click: function () {
+          if (!confirm('Eliminare la categoria "' + (cat.name || '') +
+            '"? I contenuti già taggati manterranno l\'etichetta.')) return;
+          A.removePillar(c.id, cat.id);
+          window.Shell.toast('Categoria eliminata');
+        } },
+      }, [icon('trash', 13)]));
+
+      catCard.appendChild(row);
+    });
+
+    if (!A.pillars(c.id).length) {
+      catCard.appendChild(h('p', { cls: 'panel-empty', text: 'Nessuna categoria ancora.' }));
+    }
+
+    catCard.appendChild(h('button', {
+      cls: 'btn', on: { click: function () { A.addPillar(c.id, {}); } },
+    }, [icon('plus', 13), 'Aggiungi categoria']));
+
+    grid.appendChild(catCard);
 
     /* ── Channels ─────────────────────────────────────────────────────── */
     var accCard = h('section', { cls: 'card-panel card-panel--span' }, [
@@ -322,13 +415,19 @@ window.Sections = (function () {
       var nm = h('input', {
         cls: 'input', attrs: { type: 'text', placeholder: 'Nome pagina', value: a.name || '',
                                'aria-label': 'Nome account' },
-        on: { input: function () { A.updateAccount(c.id, a.id, { name: nm.value }); } },
+        on: { input: function () {
+          var v = nm.value;
+          debounced(function () { A.updateAccount(c.id, a.id, { name: v }); });
+        } },
       });
 
       var hd = h('input', {
         cls: 'input', attrs: { type: 'text', placeholder: '@username', value: a.handle || '',
                                'aria-label': 'Username' },
-        on: { input: function () { A.updateAccount(c.id, a.id, { handle: hd.value }); } },
+        on: { input: function () {
+          var v = hd.value;
+          debounced(function () { A.updateAccount(c.id, a.id, { handle: v }); });
+        } },
       });
 
       row.appendChild(h('div', { cls: 'acc-main' }, [sel, nm, hd]));

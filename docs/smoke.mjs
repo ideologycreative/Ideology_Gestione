@@ -166,7 +166,7 @@ try {
     check('old tab structure gone',  struct.noTabs === 0, struct.noTabs + ' leftovers');
     check('status bar in workspace', struct.hasStatus);
 
-    for (const [key, view, sel] of [['1','board','.board'],['2','grid','.ggrid'],['3','calendar','.cal']]) {
+    for (const [key, view, sel] of [['1','list','.lgrid'],['2','board','.board'],['3','grid','.ggrid'],['4','calendar','.cal']]) {
       await page.keyboard.press(key);
       await new Promise(r => setTimeout(r, 280));
       const r = await page.evaluate(s2 => {
@@ -176,7 +176,7 @@ try {
       check('view "' + view + '" renders', r.present && r.kids > 0, r.kids + ' nodes');
     }
 
-    await page.keyboard.press('1');
+    await page.keyboard.press('2');
     await new Promise(r => setTimeout(r, 280));
     const moved = await page.evaluate(async () => {
       const before = [...document.querySelectorAll('.col')].map(c => c.querySelectorAll('.card').length);
@@ -271,13 +271,17 @@ try {
       await new Promise(r => setTimeout(r, 280));
       const id = App.state.selectedId;
       const was = !!(App.itemById(id) || {}).sponsored;
-      const t = document.querySelector('.toggle');
+      // Scoped by field label, not just ".toggle" — the panel now also has a
+      // feed/story-link switch using the same class.
+      const sponsoredField = [...document.querySelectorAll('.f')].find(f =>
+        (f.querySelector('.f-label') || {}).textContent === 'Sponsorizzazione');
+      const t = sponsoredField && sponsoredField.querySelector('.toggle');
       if (!t) return { skipped: true, why: 'no toggle' };
       t.click();
       await new Promise(r => setTimeout(r, 300));
       const now = !!(App.itemById(id) || {}).sponsored;
       // Leave it ON so the badge assertion below has something to find.
-      if (!now) { document.querySelector('.toggle').click(); await new Promise(r => setTimeout(r, 300)); }
+      if (!now) { t.click(); await new Promise(r => setTimeout(r, 300)); }
       return { was, now, flipped: was !== now,
                badge: !!document.querySelector('.thumb-spon') };
     });
@@ -447,7 +451,197 @@ try {
       const rows = document.querySelectorAll('.pal-row').length;
       return { open, rows };
     });
-    check('palette opens on ⌘K', pal.open && pal.rows > 5, pal.rows + ' commands');
+    check('palette opens on \u2318K', pal.open && pal.rows > 5, pal.rows + ' commands');
+
+    /* ── Tutti: the new default, date-wise view ───────────────────────────
+       The default view is a BOOT-time read (shell.js reads the saved `view`
+       once, in boot()) — entering a client's workspace does not itself reset
+       it. So testing "the default" means clearing the saved UI state and
+       actually reloading, not just re-routing within the live page. */
+    await page.evaluate(() => window.IdeologyStore.setSetting('ui', {}));
+    await page.reload({ waitUntil: 'networkidle2' });
+    const listView = await page.evaluate(async () => {
+      const c = App.clients()[0];
+      location.hash = '#/content/' + c.id;
+      await new Promise(r => setTimeout(r, 420));
+      const cards = [...document.querySelectorAll('.lcard-date')].map(e => e.textContent);
+      const sorted = cards.slice().sort();
+      return {
+        view: App.state.view,
+        hasGrid: !!document.querySelector('.lgrid'),
+        hasStatus: !!document.querySelector('.lstatus'),
+        cardCount: cards.length,
+        inOrder: JSON.stringify(cards) === JSON.stringify(sorted),
+      };
+    });
+    check('workspace defaults to Tutti', listView.view === 'list', listView.view);
+    check('Tutti renders a card grid', listView.hasGrid && listView.cardCount > 0,
+      listView.cardCount + ' cards');
+    check('each card shows a status word', listView.hasStatus);
+    check('cards are ordered by date', listView.inOrder);
+
+    /* ── Categories: full CRUD from client settings ───────────────────────
+       "Pilastro" was renamed to something the client-facing brief actually
+       describes, and — unlike before — the set of categories is something
+       the studio can now edit rather than only seed data providing. */
+    const cats = await page.evaluate(async () => {
+      const c = App.clients()[0];
+      location.hash = '#/clients/' + c.id;
+      await new Promise(r => setTimeout(r, 300));
+      const before = App.pillars(c.id).length;
+      const addBtn = [...document.querySelectorAll('.btn')].find(b => b.textContent.includes('Aggiungi categoria'));
+      if (!addBtn) return { skipped: true, why: 'no add-category button' };
+      addBtn.click();
+      await new Promise(r => setTimeout(r, 250));
+      const afterAdd = App.pillars(c.id).length;
+
+      const nameInput = document.querySelectorAll('.cat-row input.input')[afterAdd - 1];
+      nameInput.focus();
+      // The commit is debounced 260ms specifically so a full-page rebuild
+      // does not land mid-keystroke. Typing with gaps under that window
+      // must never lose focus; a rebuild landing well AFTER typing stops
+      // (and so replacing this exact DOM node) is the accepted trade, not
+      // a bug — so that is not what this asserts.
+      nameInput.value = '';
+      let focusHeldThroughout = true;
+      for (const ch of 'Prima/Dopo') {
+        nameInput.value += ch;
+        nameInput.dispatchEvent(new Event('input', { bubbles: true }));
+        await new Promise(r => setTimeout(r, 60));
+        if (document.activeElement !== nameInput) { focusHeldThroughout = false; break; }
+      }
+      await new Promise(r => setTimeout(r, 400));
+      const renamed = App.pillars(c.id)[afterAdd - 1].name;
+      const focusHeld = focusHeldThroughout;
+
+      const delBtn = document.querySelectorAll('.cat-row .iconbtn')[afterAdd - 1];
+      const origConfirm = window.confirm;
+      window.confirm = () => true;
+      delBtn.click();
+      window.confirm = origConfirm;
+      await new Promise(r => setTimeout(r, 250));
+      const afterRemove = App.pillars(c.id).length;
+
+      return { before, afterAdd, renamed, focusHeld, afterRemove };
+    });
+    if (cats.skipped) {
+      check('category CRUD', false, cats.why);
+    } else {
+      check('adding a category grows the list', cats.afterAdd === cats.before + 1,
+        cats.before + ' -> ' + cats.afterAdd);
+      check('renaming a category commits', cats.renamed === 'Prima/Dopo', cats.renamed);
+      check('typing a name does not steal focus mid-edit', cats.focusHeld === true);
+      check('removing a category shrinks the list', cats.afterRemove === cats.before,
+        cats.afterAdd + ' -> ' + cats.afterRemove);
+    }
+
+    /* ── Colour: the hex code actually works ────────────────────────────── */
+    const hexColour = await page.evaluate(async () => {
+      const c = App.clients()[0];
+      location.hash = '#/clients/' + c.id;
+      await new Promise(r => setTimeout(r, 300));
+      const hex = document.querySelector('.hexinput');
+      if (!hex) return { skipped: true, why: 'no hex input' };
+      hex.focus();
+      hex.value = '#123ABC';
+      hex.dispatchEvent(new Event('input', { bubbles: true }));
+      await new Promise(r => setTimeout(r, 400));
+      const saved = App.client(c.id).color;
+      hex.value = 'not-a-colour';
+      hex.dispatchEvent(new Event('input', { bubbles: true }));
+      const flaggedInvalid = hex.classList.contains('is-invalid');
+      return { saved, flaggedInvalid };
+    });
+    if (hexColour.skipped) {
+      check('hex colour input', false, hexColour.why);
+    } else {
+      check('typed hex code applies to the client', hexColour.saved === '#123ABC', hexColour.saved);
+      check('an invalid code is flagged, not silently applied', hexColour.flaggedInvalid);
+    }
+
+    /* ── Feed \u21c4 Story linking ──────────────────────────────────────────
+       Turning the switch on should create a companion Storie item on the
+       same account, sharing the group; turning it off should remove it. */
+    const storyLink = await page.evaluate(async () => {
+      const c = App.clients().find(x => (x.accounts || []).length >= 1);
+      location.hash = '#/content/' + c.id;
+      await new Promise(r => setTimeout(r, 420));
+      App.set({ view: 'list', kind: 'feed', accountId: c.accounts[0].id });
+      await new Promise(r => setTimeout(r, 350));
+      const card = document.querySelector('.lcard');
+      if (!card) return { skipped: true, why: 'no card' };
+      card.click();
+      await new Promise(r => setTimeout(r, 300));
+      const id = App.state.selectedId;
+      const before = App.hasStoryLink(App.itemById(id));
+      // Re-query after every click: each toggle re-renders the panel from
+      // scratch, so a button reference captured before the render is stale —
+      // clicking it again replays the PREVIOUS state's closure, not the
+      // current one.
+      function findToggle() {
+        const block = [...document.querySelectorAll('.f')].find(f =>
+          (f.querySelector('.f-label') || {}).textContent === 'Anche nelle Storie');
+        return block && block.querySelector('.toggle');
+      }
+      const t1 = findToggle();
+      if (!t1) return { skipped: true, why: 'no story-link control' };
+      t1.click();
+      await new Promise(r => setTimeout(r, 300));
+      const afterOn = App.hasStoryLink(App.itemById(id));
+      const t2 = findToggle();
+      if (!t2) return { skipped: true, why: 'toggle vanished after turning on' };
+      t2.click();
+      await new Promise(r => setTimeout(r, 300));
+      const afterOff = App.hasStoryLink(App.itemById(id));
+      return { before, afterOn, afterOff };
+    });
+    if (storyLink.skipped) {
+      check('feed/story linking', false, storyLink.why);
+    } else {
+      check('story link starts off', storyLink.before === false);
+      check('turning it on creates the story sibling', storyLink.afterOn === true);
+      check('turning it off removes the story sibling', storyLink.afterOff === false);
+    }
+
+    /* ── Carousel slides: mixed image/video, editable ─────────────────────
+       Each slide gets its own optional clip, and the first slide's image
+       stays the card cover the rest of the app already relies on. */
+    const slides = await page.evaluate(async () => {
+      const c = App.clients()[0];
+      location.hash = '#/content/' + c.id;
+      await new Promise(r => setTimeout(r, 400));
+      App.set({ view: 'list', kind: 'feed' });
+      await new Promise(r => setTimeout(r, 300));
+      const carItem = App.items().find(i => i.type === 'carousel' && (i.slides || []).length);
+      if (!carItem) return { skipped: true, why: 'no carousel in this month' };
+      App.set({ selectedId: carItem.id });
+      await new Promise(r => setTimeout(r, 300));
+      const rowsBefore = document.querySelectorAll('.slide-row').length;
+      const addBtn = [...document.querySelectorAll('.btn')].find(b => b.textContent.includes('Aggiungi slide'));
+      if (!addBtn) return { skipped: true, why: 'no add-slide button' };
+      addBtn.click();
+      await new Promise(r => setTimeout(r, 300));
+      const rowsAfter = document.querySelectorAll('.slide-row').length;
+
+      const vurl = document.querySelectorAll('.slide-row input[placeholder^="URL video"]')[rowsAfter - 1];
+      vurl.focus();
+      vurl.value = 'https://example.com/clip.mp4';
+      vurl.dispatchEvent(new Event('input', { bubbles: true }));
+      await new Promise(r => setTimeout(r, 400));
+      const savedVideo = (App.itemById(carItem.id).slides[rowsAfter - 1] || {}).videoUrl;
+      const coverMatchesFirstSlide = App.itemById(carItem.id).url === App.itemById(carItem.id).slides[0].url;
+
+      return { rowsBefore, rowsAfter, savedVideo, coverMatchesFirstSlide };
+    });
+    if (slides.skipped) {
+      check('carousel slide editor', false, slides.why);
+    } else {
+      check('slide editor lists one row per slide', slides.rowsBefore > 0, slides.rowsBefore + ' rows');
+      check('adding a slide grows the editor', slides.rowsAfter === slides.rowsBefore + 1,
+        slides.rowsBefore + ' -> ' + slides.rowsAfter);
+      check('a slide video URL commits', slides.savedVideo === 'https://example.com/clip.mp4', slides.savedVideo);
+      check('cover thumbnail tracks slide 1', slides.coverMatchesFirstSlide);
+    }
 
     await page.close();
   }
@@ -809,6 +1003,40 @@ try {
       await page.reload({ waitUntil: 'networkidle2' });
       const kept = await page.evaluate(() => document.querySelectorAll('.cv-done').length);
       check('approval survives reload', kept >= appr.after, kept + ' approved');
+    }
+
+    /* Carousel slides can mix a clip in with the photos — the cover stays a
+       poster (with the same play hint a reel gets) until you actually step
+       to that slide and open it. */
+    const carVideo = await page.evaluate(async () => {
+      const cards = [...document.querySelectorAll('.cv-post')].filter(c => {
+        const tag = c.querySelector('.cv-mark-tr');
+        return tag && tag.textContent.indexOf('Car') === 0;
+      });
+      if (!cards.length) return { skipped: true, why: 'no carousel in the default month' };
+      for (const card of cards) {
+        const coverHint = !!card.querySelector('.cv-play');
+        card.querySelector('.cv-media').click();
+        await new Promise(r => setTimeout(r, 300));
+        const dots = document.querySelectorAll('.pv-dots i').length;
+        let foundVideo = false;
+        for (let i = 0; i < dots && !foundVideo; i++) {
+          if (document.querySelector('.pv-media video')) { foundVideo = true; break; }
+          document.getElementById('pv-next').click();
+          await new Promise(r => setTimeout(r, 220));
+        }
+        document.getElementById('pv-close').click();
+        await new Promise(r => setTimeout(r, 150));
+        if (foundVideo) return { skipped: false, coverHint, dots, foundVideo, checked: cards.length };
+      }
+      return { skipped: true,
+        why: 'none of ' + cards.length + ' carousels this month carry a video slide (seed is random)' };
+    });
+    if (carVideo.skipped) {
+      check('carousel slide video', false, carVideo.why);
+    } else {
+      check('a mixed carousel opens with more than one slide', carVideo.dots > 1, carVideo.dots + ' slides');
+      check('a video slide plays as <video>, not <img>', carVideo.foundVideo === true);
     }
 
     await page.close();

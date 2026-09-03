@@ -197,6 +197,34 @@ window.Inspector = (function () {
       ));
     }
 
+    /* ── Feed ⇄ Story ──────────────────────────────────────────────────────
+       Crosses the other axis from channels: not another ACCOUNT, but the
+       other SURFACE on the same one. Turning this on creates a companion
+       copy in Storie for the account you are looking at, kept in sync the
+       same way a second channel is — same media, same caption, own approval.
+       Reads the other way round too: open that story and the switch here
+       says "Anche nei Post". */
+    var storyOn = A.hasStoryLink(item);
+    var storyLabel = item._kind === 'story' ? 'Anche nei Post' : 'Anche nelle Storie';
+    body.appendChild(field(storyLabel,
+      h('button', {
+        cls: 'toggle' + (storyOn ? ' is-on' : ''),
+        attrs: { role: 'switch', 'aria-checked': String(storyOn) },
+        on: { click: function () {
+          A.setStoryLink(item.id, !storyOn);
+          window.Shell.toast(storyOn ? 'Collegamento rimosso' : 'Collegato — vedi ' +
+            (item._kind === 'story' ? 'Contenuti' : 'Storie'));
+        } },
+      }, [
+        h('span', { cls: 'toggle-track' }, [h('i')]),
+        icon('layers', 13),
+        h('span', { text: storyOn ? 'Collegato' : 'Indipendente' }),
+      ]),
+      item._kind === 'story'
+        ? 'Pubblica lo stesso contenuto anche nel feed di questo account.'
+        : 'Pubblica lo stesso contenuto anche nelle Storie di questo account.'
+    ));
+
     /* ── Sponsored ────────────────────────────────────────────────────────
        Paid placement. A switch rather than a chip because it is binary and
        consequential: it changes what the client sees, how the day reads in
@@ -261,12 +289,15 @@ window.Inspector = (function () {
 
     body.appendChild(row);
 
-    /* ── Pillar ─────────────────────────────────────────────────────────────
-       Presented as chips rather than a select: there are three or four per
-       client, they are colour-coded, and picking one should be a single tap. */
+    /* ── Category ───────────────────────────────────────────────────────────
+       What kind of content this is — customer review, product, educational,
+       before/after. Chips rather than a select: there are a handful per
+       client, they are colour-coded, and picking one should be a single tap.
+       The list itself is edited from the client's own settings page, not
+       here — this panel only applies a category, it does not define them. */
     var pills = A.pillars();
     if (pills.length) {
-      body.appendChild(field('Pilastro',
+      body.appendChild(field('Categoria',
         h('div', { cls: 'chips' }, pills.map(function (p) {
           var on = item.pilastro === p.name;
           return h('button', {
@@ -279,68 +310,227 @@ window.Inspector = (function () {
             h('i', { style: 'background:' + p.color }),
             p.name,
           ]);
-        }))
+        })),
+        'Aggiungi o modifica le categorie dalla scheda del cliente.'
       ));
     }
 
     /* ── Media ──────────────────────────────────────────────────────────── */
-    var url = h('input', {
-      cls: 'input',
-      attrs: { type: 'text', placeholder: 'https://… oppure carica un file',
-               'aria-label': 'URL immagine' },
-      on: {
-        input: function () {
-          var v = url.value;
-          debounced(function () { A.patchItem(item.id, { url: v, externalUrl: v }); });
+    if (item.type !== 'carousel') {
+      var url = h('input', {
+        cls: 'input',
+        attrs: { type: 'text', placeholder: 'https://… oppure carica un file',
+                 'aria-label': 'URL immagine' },
+        on: {
+          input: function () {
+            var v = url.value;
+            debounced(function () { A.patchItem(item.id, { url: v, externalUrl: v }); });
+          },
         },
-      },
-    });
-    url.value = item.url || '';
+      });
+      url.value = item.url || '';
 
-    var file = h('input', {
-      attrs: { type: 'file', accept: 'image/*', hidden: 'hidden' },
-      on: {
-        change: function () {
-          var f = file.files && file.files[0];
-          if (!f) return;
-          /* Read straight to a data URL. Honest about the trade: this is a
-             local build with a ~5MB localStorage budget, so a full-size photo
-             will hit the quota — the store raises a typed QUOTA error and the
-             toast below surfaces it rather than failing silently. */
-          var fr = new FileReader();
-          fr.onload = function () {
+      var file = h('input', {
+        attrs: { type: 'file', accept: 'image/*', hidden: 'hidden' },
+        on: {
+          change: function () {
+            var f = file.files && file.files[0];
+            if (!f) return;
+            /* Read straight to a data URL. Honest about the trade: this is a
+               local build with a ~5MB localStorage budget, so a full-size photo
+               will hit the quota — the store raises a typed QUOTA error and the
+               toast below surfaces it rather than failing silently. */
+            var fr = new FileReader();
+            fr.onload = function () {
+              try {
+                A.patchItem(item.id, { url: fr.result, externalUrl: fr.result });
+                window.Shell.toast('Immagine caricata');
+              } catch (e) {
+                window.Shell.toast(e && e.code === 'QUOTA'
+                  ? 'Spazio locale esaurito' : 'Caricamento fallito');
+              }
+            };
+            fr.onerror = function () { window.Shell.toast('Lettura del file fallita'); };
+            fr.readAsDataURL(f);
+          },
+        },
+      });
+
+      body.appendChild(field('Media',
+        h('div', {}, [
+          url,
+          h('div', { cls: 'f-row', style: 'margin-top:8px' }, [
+            h('button', {
+              cls: 'btn',
+              on: { click: function () { file.click(); } },
+            }, [icon('image', 13), 'Carica']),
+            h('button', {
+              cls: 'btn',
+              on: { click: function () {
+                A.patchItem(item.id, { url: '', externalUrl: '' });
+              } },
+            }, ['Rimuovi']),
+          ]),
+          file,
+        ])
+      ));
+    }
+
+    /* ── Carousel slides ────────────────────────────────────────────────────
+       A carousel is not one image but an ordered set of them — and, since a
+       carousel can mix a photo slide with a clip, each slide carries its own
+       optional video the same way a reel does: the image is always what the
+       grid and the client see first, the video is what plays once opened.
+       Slide 1 doubles as the cover — its image is what item.url becomes, so
+       the thumbnail everywhere else in the app stays correct without a
+       second field to keep in sync. */
+    if (item.type === 'carousel') {
+      var slides = (item.slides || []).slice();
+
+      function commitSlides(next) {
+        var cover = next[0] || {};
+        A.patchItem(item.id, {
+          slides: next,
+          url: cover.url || '',
+          externalUrl: cover.url || '',
+        });
+      }
+
+      var slideWrap = h('div', { cls: 'slide-editor' });
+
+      slides.forEach(function (sl, i) {
+        var prev = h('div', { cls: 'slide-prev' });
+        var purl = A.safeUrl(sl.url || sl.externalUrl);
+        if (purl) prev.appendChild(h('img', { attrs: { src: purl, alt: '' } }));
+        else prev.appendChild(icon('image', 16));
+        if (sl.videoUrl) prev.appendChild(h('span', { cls: 'slide-vtag', text: 'VIDEO' }));
+
+        var imgUrl = h('input', {
+          cls: 'input input--sm',
+          attrs: { type: 'text', placeholder: 'URL immagine', 'aria-label': 'Immagine slide ' + (i + 1) },
+          on: { input: function () {
+            var v = imgUrl.value;
+            debounced(function () {
+              var next = slides.slice();
+              next[i] = Object.assign({}, next[i], { url: v, externalUrl: v });
+              commitSlides(next);
+            });
+          } },
+        });
+        imgUrl.value = sl.url || '';
+
+        var imgFile = h('input', {
+          attrs: { type: 'file', accept: 'image/*', hidden: 'hidden' },
+          on: { change: function () {
+            var f = imgFile.files && imgFile.files[0];
+            if (!f) return;
+            var fr = new FileReader();
+            fr.onload = function () {
+              try {
+                var next = slides.slice();
+                next[i] = Object.assign({}, next[i], { url: fr.result, externalUrl: fr.result });
+                commitSlides(next);
+              } catch (e) {
+                window.Shell.toast(e && e.code === 'QUOTA' ? 'Spazio locale esaurito' : 'Caricamento fallito');
+              }
+            };
+            fr.readAsDataURL(f);
+          } },
+        });
+
+        var vurl = h('input', {
+          cls: 'input input--sm',
+          attrs: { type: 'text', placeholder: 'URL video (opzionale)', 'aria-label': 'Video slide ' + (i + 1) },
+          on: { input: function () {
+            var v = vurl.value;
+            debounced(function () {
+              var next = slides.slice();
+              next[i] = Object.assign({}, next[i], { videoUrl: v });
+              commitSlides(next);
+            });
+          } },
+        });
+        vurl.value = sl.videoUrl || '';
+
+        var vfile = h('input', {
+          attrs: { type: 'file', accept: 'video/*', hidden: 'hidden' },
+          on: { change: function () {
+            var f = vfile.files && vfile.files[0];
+            if (!f) return;
             try {
-              A.patchItem(item.id, { url: fr.result, externalUrl: fr.result });
-              window.Shell.toast('Immagine caricata');
-            } catch (e) {
-              window.Shell.toast(e && e.code === 'QUOTA'
-                ? 'Spazio locale esaurito' : 'Caricamento fallito');
-            }
-          };
-          fr.onerror = function () { window.Shell.toast('Lettura del file fallita'); };
-          fr.readAsDataURL(f);
-        },
-      },
-    });
+              var u = URL.createObjectURL(f);
+              var next = slides.slice();
+              next[i] = Object.assign({}, next[i], { videoUrl: u });
+              commitSlides(next);
+              window.Shell.toast('Video collegato (solo questa sessione)');
+            } catch (e) { window.Shell.toast('Impossibile leggere il video'); }
+          } },
+        });
 
-    body.appendChild(field('Media',
-      h('div', {}, [
-        url,
-        h('div', { cls: 'f-row', style: 'margin-top:8px' }, [
+        var row = h('div', { cls: 'slide-row' }, [
+          prev,
+          h('div', { cls: 'slide-body' }, [
+            imgUrl,
+            vurl,
+            h('div', { cls: 'f-row', style: 'margin-top:6px' }, [
+              h('button', { cls: 'btn btn--xs', on: { click: function () { imgFile.click(); } } }, ['Carica img']),
+              h('button', { cls: 'btn btn--xs', on: { click: function () { vfile.click(); } } },
+                [sl.videoUrl ? 'Sostituisci video' : 'Aggiungi video']),
+              sl.videoUrl
+                ? h('button', { cls: 'btn btn--xs', on: { click: function () {
+                    var next = slides.slice();
+                    next[i] = Object.assign({}, next[i], { videoUrl: '' });
+                    commitSlides(next);
+                  } } }, ['Rimuovi video'])
+                : null,
+            ]),
+            imgFile, vfile,
+          ]),
+          h('div', { cls: 'slide-side' }, [
+            h('button', {
+              cls: 'iconbtn', attrs: { 'aria-label': 'Sposta su', title: 'Sposta su', disabled: i === 0 ? 'disabled' : null },
+              on: { click: function () {
+                if (i === 0) return;
+                var next = slides.slice();
+                var t = next[i - 1]; next[i - 1] = next[i]; next[i] = t;
+                commitSlides(next);
+              } },
+            }, ['↑']),
+            h('button', {
+              cls: 'iconbtn', attrs: { 'aria-label': 'Sposta giù', title: 'Sposta giù', disabled: i === slides.length - 1 ? 'disabled' : null },
+              on: { click: function () {
+                if (i === slides.length - 1) return;
+                var next = slides.slice();
+                var t = next[i + 1]; next[i + 1] = next[i]; next[i] = t;
+                commitSlides(next);
+              } },
+            }, ['↓']),
+            h('button', {
+              cls: 'iconbtn', attrs: { 'aria-label': 'Elimina slide', title: 'Elimina slide' },
+              on: { click: function () {
+                var next = slides.slice();
+                next.splice(i, 1);
+                commitSlides(next);
+              } },
+            }, [icon('trash', 12)]),
+          ]),
+        ]);
+        slideWrap.appendChild(row);
+      });
+
+      body.appendChild(field('Slide del carosello (' + slides.length + ')',
+        h('div', {}, [
+          slideWrap,
           h('button', {
-            cls: 'btn',
-            on: { click: function () { file.click(); } },
-          }, [icon('image', 13), 'Carica']),
-          h('button', {
-            cls: 'btn',
+            cls: 'btn', style: 'margin-top:8px',
             on: { click: function () {
-              A.patchItem(item.id, { url: '', externalUrl: '' });
+              commitSlides(slides.concat([{ url: '', externalUrl: '', videoUrl: '', copy: '' }]));
             } },
-          }, ['Rimuovi']),
+          }, [icon('plus', 13), 'Aggiungi slide']),
         ]),
-        file,
-      ])
-    ));
+        'La prima slide è la copertina mostrata in griglia. Una slide con video mostra la sua immagine finché non viene aperta.'
+      ));
+    }
 
     /* ── Video ──────────────────────────────────────────────────────────
        Only for reels: a photo has nothing to play. The poster above stays the

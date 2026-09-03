@@ -146,5 +146,77 @@ await page.evaluate(async () => {
 });
 await shot('23-inspector-two-channels');
 
+// Tutti -- the new default view, date order, bigger cards, status on frame.
+await page.goto(BASE + '/', { waitUntil: 'networkidle2' });
+await page.evaluate(() => {
+  const c = App.clients()[0];
+  location.hash = '#/content/' + c.id;
+});
+await new Promise(r => setTimeout(r, 500));
+await page.evaluate(() => App.set({ view: 'list' }));
+await new Promise(r => setTimeout(r, 400));
+await shot('24-tutti-view');
+
+// Client editor -- working hex colour field, and category CRUD underneath.
+await page.evaluate(() => { location.hash = '#/clients/' + App.clients()[0].id; });
+await new Promise(r => setTimeout(r, 400));
+await shot('25-client-editor-colour-categories');
+
+// Inspector -- the feed/story link toggle, right below channel targets.
+await page.evaluate(() => {
+  const c = App.clients()[0];
+  location.hash = '#/content/' + c.id;
+});
+await new Promise(r => setTimeout(r, 400));
+await page.evaluate(() => App.set({ view: 'list' }));
+await new Promise(r => setTimeout(r, 300));
+await page.evaluate(() => { const card = document.querySelector('.lcard'); if (card) card.click(); });
+await new Promise(r => setTimeout(r, 400));
+await shot('26-inspector-story-link');
+
+// Inspector -- carousel slide editor, one row per slide, video optional.
+await page.evaluate(() => {
+  const carItem = App.items().find(i => i.type === 'carousel' && (i.slides || []).length >= 4);
+  if (carItem) App.set({ selectedId: carItem.id });
+});
+await new Promise(r => setTimeout(r, 400));
+await page.evaluate(() => {
+  const body = document.querySelector('.insp-body');
+  if (body) body.scrollTop = body.scrollHeight;
+});
+await new Promise(r => setTimeout(r, 200));
+await shot('27-inspector-carousel-slides');
+
+// Portal -- a carousel slide that is itself a video, mid-playback.
+await page.goto(BASE + '/client?t=' + TOKEN, { waitUntil: 'networkidle2' });
+await page.setViewport({ width: 1280, height: 920, deviceScaleFactor: 1 });
+await page.reload({ waitUntil: 'networkidle2' });
+await new Promise(r => setTimeout(r, 400));
+const foundSlideVideo = await page.evaluate(async () => {
+  const cards = [...document.querySelectorAll('.cv-post')].filter(c => {
+    const tag = c.querySelector('.cv-mark-tr');
+    return tag && tag.textContent.indexOf('Car') === 0;
+  });
+  for (const card of cards) {
+    card.querySelector('.cv-media').click();
+    await new Promise(r => setTimeout(r, 300));
+    const dots = document.querySelectorAll('.pv-dots i').length;
+    for (let i = 0; i < dots; i++) {
+      if (document.querySelector('.pv-media video')) return true;
+      document.getElementById('pv-next').click();
+      await new Promise(r => setTimeout(r, 220));
+    }
+    document.getElementById('pv-close').click();
+    await new Promise(r => setTimeout(r, 150));
+  }
+  return false;
+});
+if (foundSlideVideo) {
+  await new Promise(r => setTimeout(r, 400));
+  await shot('28-portal-carousel-video-slide');
+} else {
+  console.log('  (skipped 28 — this seed has no carousel with a video slide)');
+}
+
 await browser.close().catch(() => {});
 console.log('\nsaved to docs/shots/');

@@ -123,7 +123,7 @@ window.App = (function () {
     clientId: null,
     accountId: null,
     month: null,
-    view: 'board',
+    view: 'list',
     kind: 'feed',
     selectedId: null,
     query: '',
@@ -522,6 +522,62 @@ window.App = (function () {
     };
   }
 
+  /* Which account holds this exact copy — needed because a group can span
+     several accounts, and the story link only ever touches the account the
+     item you are looking at actually belongs to. */
+  function homeAccountOf(item) {
+    if (item.groupId) {
+      var self = groupSiblings(item.groupId).find(function (r) { return r.item.id === item.id; });
+      if (self) return self.accountId;
+    }
+    return (account() || {}).id;
+  }
+
+  /* ── Feed ⇄ Story linking ─────────────────────────────────────────────────
+     The same mechanism as channel targets, crossing the other axis: instead
+     of the same content going to another ACCOUNT, it also goes out as a
+     STORY on the SAME account (or, run from a story, also as a feed post).
+     One companion copy per account — a story is usually curated by hand even
+     when it starts from a post, so this does not fan out to every channel. */
+  function hasStoryLink(item) {
+    if (!item || !item.groupId) return false;
+    var wantKind = item._kind === 'story' ? 'feed' : 'story';
+    var accId = homeAccountOf(item);
+    return groupSiblings(item.groupId).some(function (r) {
+      return r.kind === wantKind && r.accountId === accId;
+    });
+  }
+
+  function setStoryLink(id, on) {
+    var item = itemById(id);
+    if (!item) return;
+
+    var gid = item.groupId;
+    if (!gid) { gid = newId('g_'); patchItem(id, { groupId: gid }); item = itemById(id) || item; }
+
+    var accId = homeAccountOf(item);
+    var wantKind = item._kind === 'story' ? 'feed' : 'story';
+    var existing = groupSiblings(gid).find(function (r) {
+      return r.kind === wantKind && r.accountId === accId;
+    });
+
+    if (on) {
+      if (existing) return;
+      var clone = Object.assign({}, item, {
+        id: newId('i_'), groupId: gid,
+        apprStato: 'bozza', apprRevisions: 0,
+        clientNote: '', apprNote: '', clientName: '',
+      });
+      delete clone._kind;
+      writeAcc(accId, wantKind, [clone].concat(readAcc(accId, wantKind)));
+    } else {
+      if (!existing) return;
+      writeAcc(accId, wantKind,
+        readAcc(accId, wantKind).filter(function (x) { return x.id !== existing.item.id; }));
+    }
+    emit('targets');
+  }
+
   function patchItem(id, patch) {
     var target = itemById(id);
     if (!target) return null;
@@ -690,6 +746,38 @@ window.App = (function () {
 
   function pillars(id) { return (S.get('pillars') || {})[id || state.clientId] || []; }
   function formats(id) { return (S.get('formats') || {})[id || state.clientId] || []; }
+
+  /* ── Categories ("pillars") ───────────────────────────────────────────────
+     What kind of content a post is — customer review, product, educational,
+     before/after. Seed data shipped these but nothing in the app could add,
+     rename or remove one; a client's own content mix is exactly the thing a
+     studio needs to be able to redefine as the account matures. */
+  var CATEGORY_COLORS = ['#2DA7A7', '#8B7BD8', '#e40e49', '#F2C700', '#4ADE80', '#f37c7b', '#00AFAF'];
+
+  function setPillars(clientId, list) {
+    var cur = Object.assign({}, S.get('pillars') || {});
+    cur[clientId] = list;
+    S.set('pillars', cur);
+    emit('pillars');
+  }
+  function addPillar(clientId, patch) {
+    var list = pillars(clientId);
+    var color = CATEGORY_COLORS[list.length % CATEGORY_COLORS.length];
+    var p = Object.assign({ id: newId('p_'), name: 'Nuova categoria', color: color }, patch || {});
+    setPillars(clientId, list.concat([p]));
+    return p.id;
+  }
+  function updatePillar(clientId, pillarId, patch) {
+    setPillars(clientId, pillars(clientId).map(function (p) {
+      return p.id === pillarId ? Object.assign({}, p, patch) : p;
+    }));
+  }
+  /* Content already tagged with a removed category keeps the text label —
+     rewriting every post across every month for a string tag is more
+     machinery than a local prototype needs, and a stale label is harmless. */
+  function removePillar(clientId, pillarId) {
+    setPillars(clientId, pillars(clientId).filter(function (p) { return p.id !== pillarId; }));
+  }
   function statusOf(id) {
     return STATUSES.find(function (s) { return s.id === id; }) || STATUSES[0];
   }
@@ -786,6 +874,7 @@ window.App = (function () {
     cog:      '<circle cx="12" cy="12" r="3.2"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M19.1 4.9L17 7M7 17l-2.1 2.1"/>',
     board:    '<path d="M3 3h5v18H3zM10 3h5v12h-5zM17 3h4v7h-4"/>',
     grid:     '<path d="M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h7v7h-7"/>',
+    rows:     '<path d="M3 5h18M3 12h18M3 19h18"/>',
     calendar: '<path d="M3 5h18v16H3zM3 10h18M8 3v4M16 3v4"/>',
     plus:     '<path d="M12 5v14M5 12h14"/>',
     close:    '<path d="M6 6l12 12M18 6L6 18"/>',
@@ -835,6 +924,8 @@ window.App = (function () {
     progress: progress, clientProgress: clientProgress, studioStats: studioStats,
     clientMonthDays: clientMonthDays,
     pillars: pillars, formats: formats, statusOf: statusOf,
+    addPillar: addPillar, updatePillar: updatePillar, removePillar: removePillar,
+    hasStoryLink: hasStoryLink, setStoryLink: setStoryLink,
     studioLogo: studioLogo, setStudioLogo: setStudioLogo,
     fmtDay: fmtDay, dayOf: dayOf, monthMeta: monthMeta, initials: initials,
     safeUrl: safeUrl, safeVideoUrl: safeVideoUrl, copy: copy,

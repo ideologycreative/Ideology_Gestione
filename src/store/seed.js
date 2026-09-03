@@ -307,10 +307,17 @@ window.IdeologySeed = (function () {
         item.slides = Array.from({ length: n }, (_, s) => ({
           url:         img(seed + '-s' + s, w, h),
           externalUrl: img(seed + '-s' + s, w, h),
+          videoUrl:    '',
           name:        'slide-' + (s + 1) + '.jpg',
           copy:        s === 0 ? '' : 'Passaggio ' + s,
           note:        '',
         }));
+        /* One carousel in six mixes in a clip on its second slide, so the
+           mixed-media path (poster until opened, then plays) is something
+           you can actually click through in the demo, not just read about. */
+        if (rand() < 0.16 && item.slides[1]) {
+          item.slides[1].videoUrl = '/assets/video/demo-reel.mp4';
+        }
         item.url = item.slides[0].url;
         item.externalUrl = item.slides[0].url;
       }
