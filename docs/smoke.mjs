@@ -643,6 +643,45 @@ try {
       check('cover thumbnail tracks slide 1', slides.coverMatchesFirstSlide);
     }
 
+    /* ── Auto-publish ───────────────────────────────────────────────────────
+       An approved post whose date has passed should read as published
+       without anyone clicking a button — the sweep lives in the shared store
+       so both the studio and the portal (a separate page) catch it. */
+    const sweep = await page.evaluate(async () => {
+      const c = App.clients()[0];
+      const acc = c.accounts[0];
+      const month = App.thisMonth();
+      const list = window.IdeologyStore.getFeed(acc.id, month);
+      if (list.length < 2) return { skipped: true, why: 'not enough feed items' };
+
+      const iso = (d) => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') +
+        '-' + String(d.getDate()).padStart(2, '0');
+      const yesterday = iso(new Date(Date.now() - 86400000));
+      const future = iso(new Date(Date.now() + 5 * 86400000));
+
+      const due = list[0], notDue = list[1];
+      window.IdeologyStore.setFeed(acc.id, month, list.map(it => {
+        if (it.id === due.id)    return { ...it, apprStato: 'approvato', date: yesterday };
+        if (it.id === notDue.id) return { ...it, apprStato: 'approvato', date: future };
+        return it;
+      }));
+
+      const changed = window.IdeologyStore.sweepPublished();
+      const after = window.IdeologyStore.getFeed(acc.id, month);
+      return {
+        skipped: false, changed,
+        pastDueNowPublished: after.find(x => x.id === due.id).apprStato === 'pubblicato',
+        futureStaysApproved: after.find(x => x.id === notDue.id).apprStato === 'approvato',
+      };
+    });
+    if (sweep.skipped) {
+      check('auto-publish sweep', false, sweep.why);
+    } else {
+      check('sweep reports a change happened', sweep.changed === true);
+      check('a past-due approved post becomes published', sweep.pastDueNowPublished === true);
+      check('a future-dated approved post is left alone', sweep.futureStaysApproved === true);
+    }
+
     await page.close();
   }
 
@@ -1003,6 +1042,34 @@ try {
       await page.reload({ waitUntil: 'networkidle2' });
       const kept = await page.evaluate(() => document.querySelectorAll('.cv-done').length);
       check('approval survives reload', kept >= appr.after, kept + ' approved');
+    }
+
+    /* Published content shows up here too, read-only — and an approved (not
+       yet published) post keeps a way back to revision, since an accidental
+       "Approva" click used to be permanent from the client's side. */
+    const undo = await page.evaluate(async () => {
+      const wraps = [...document.querySelectorAll('.cv-done-wrap')];
+      const publishedLabels = [...document.querySelectorAll('.cv-done')]
+        .filter(e => e.textContent.indexOf('Pubblicato') >= 0).length;
+      if (!wraps.length) return { skipped: true, why: 'no approved (unpublished) card on screen', publishedLabels };
+      const btn = wraps[0].querySelector('.cv-undo');
+      if (!btn) return { skipped: true, why: 'no undo control', publishedLabels };
+      btn.click();
+      await new Promise(r => setTimeout(r, 250));
+      const opened = document.getElementById('cv-modal').classList.contains('open');
+      document.getElementById('cv-modal-text').value = 'Cambiamo la foto per favore';
+      document.getElementById('cv-modal-send').click();
+      await new Promise(r => setTimeout(r, 300));
+      const closed = !document.getElementById('cv-modal').classList.contains('open');
+      const pendingNow = document.querySelectorAll('.cv-pending').length > 0;
+      return { skipped: false, publishedLabels, opened, closed, pendingNow };
+    });
+    if (undo.skipped) {
+      check('approved post can be sent back for revision', false, undo.why);
+    } else {
+      check('published posts show a Pubblicato label', undo.publishedLabels > 0, undo.publishedLabels + '');
+      check('"request a change" opens the revision modal', undo.opened === true);
+      check('sending it moves the post to revisione', undo.closed && undo.pendingNow);
     }
 
     /* Carousel slides can mix a clip in with the photos — the cover stays a

@@ -416,6 +416,11 @@ window.Shell = (function () {
 
     if (S.isEmpty() && window.IdeologySeed) IdeologySeed.run(S);
 
+    /* An approved post that has already reached its date should read as
+       published the moment anyone opens the studio, not sit at "Approvato"
+       until someone remembers to flip it by hand. */
+    S.sweepPublished();
+
     var saved = S.getSetting('ui', {}) || {};
     A.state.month = saved.month || A.thisMonth();
     A.state.view  = saved.view  || 'list';
@@ -432,6 +437,10 @@ window.Shell = (function () {
     wireKeys();
     A.readRoute();
     render();
+
+    /* Catches a post crossing its publish date while the tab is left open —
+       the boot-time sweep above only covers what was already due on load. */
+    setInterval(function () { if (S.sweepPublished()) render(); }, 5 * 60 * 1000);
   }
 
   function wireKeys() {

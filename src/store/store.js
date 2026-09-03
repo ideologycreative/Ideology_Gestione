@@ -233,6 +233,40 @@ window.IdeologyStore = (function () {
     return out;
   }
 
+  /* ── auto-publish ──────────────────────────────────────────────────────────
+     An approved post is scheduled to go out on its date; nobody should have
+     to remember to come back and click "Pubblicato" once that day arrives.
+     Lives here, not in the studio's core.js, because the client portal is a
+     separate page that never loads core.js and needs the exact same sweep —
+     whichever surface is opened first on a given day is the one that should
+     catch it.
+
+     Only 'approvato' moves — a post still waiting on the client, or one they
+     asked changes to, is not something that should silently start reading as
+     published just because its date passed. */
+  function sweepPublished() {
+    const d = new Date();
+    const todayIso = d.getFullYear() + '-' +
+      String(d.getMonth() + 1).padStart(2, '0') + '-' +
+      String(d.getDate()).padStart(2, '0');
+    const isDue = it => it && it.apprStato === 'approvato' && it.date && it.date <= todayIso;
+
+    let any = false;
+    for (const coll of ['feeds', 'stories']) {
+      const all = get(coll);
+      const dueKeys = Object.keys(all).filter(key => (all[key] || []).some(isDue));
+      if (!dueKeys.length) continue;
+      update(coll, cur => {
+        dueKeys.forEach(key => {
+          cur[key] = cur[key].map(it => isDue(it) ? { ...it, apprStato: 'pubblicato' } : it);
+        });
+        return cur;
+      });
+      any = true;
+    }
+    return any;
+  }
+
   /* ── settings ──────────────────────────────────────────────────────────── */
 
   function getSetting(name, fallback) {
@@ -305,6 +339,7 @@ window.IdeologyStore = (function () {
     feedKey, parseFeedKey,
     getClient, getClientByToken, getClientFeeds,
     getFeed, setFeed, getStories, setStories,
+    sweepPublished,
     getSetting, setSetting,
     exportAll, importAll, usage,
     COLLECTIONS: Object.keys(COLLECTIONS),

@@ -316,6 +316,19 @@ select.cv-sel:focus-visible { outline: 2px solid var(--accent); outline-offset: 
   letter-spacing: var(--track); text-transform: uppercase;
   display: flex; align-items: center; gap: 7px;
 }
+.cv-done-wrap { margin-top: auto; display: flex; flex-direction: column; }
+.cv-done-wrap .cv-done { margin-top: 0; }
+.cv-undo {
+  appearance: none; border: 1px solid var(--rule); border-top: 0; background: none;
+  color: var(--text-3); padding: 8px; min-height: 34px;
+  font-family: var(--mono); font-size: 9px; font-weight: 700;
+  letter-spacing: var(--track); text-transform: uppercase;
+  cursor: pointer;
+  transition: background .15s, color .15s;
+}
+.cv-undo:hover { background: var(--surface-lt); color: var(--warning-text); }
+.cv-undo:focus-visible { outline: 2px solid var(--accent); outline-offset: -3px; }
+
 .cv-pending {
   margin-top: auto; padding: 12px;
   border-top: 1px solid var(--warning-border); color: var(--warning-text);
@@ -700,6 +713,12 @@ select.cv-sel:focus-visible { outline: 2px solid var(--accent); outline-offset: 
 
   function init() {
     try { if (S.isEmpty() && window.IdeologySeed) IdeologySeed.run(S); } catch (e) { console.error(e); }
+    /* An approved post that has reached its date should already read as
+       published when the client opens this link — nobody on the studio side
+       may have looked at it since it went out. This is a separate page from
+       the studio (no core.js here), so the sweep has to run again from this
+       entry point too; it is the same shared function either way. */
+    try { S.sweepPublished(); } catch (e) { console.error(e); }
 
     var t = token();
     if (!t) {
@@ -718,6 +737,8 @@ select.cv-sel:focus-visible { outline: 2px solid var(--accent); outline-offset: 
     var now = new Date();
     month = MONTHS[now.getMonth()] + ' ' + now.getFullYear();
     render();
+
+    setInterval(function () { if (S.sweepPublished()) render(); }, 5 * 60 * 1000);
   }
 
   /* ── Data ────────────────────────────────────────────────────────────── */
@@ -970,8 +991,19 @@ select.cv-sel:focus-visible { outline: 2px solid var(--accent); outline-offset: 
     }
     card.appendChild(meta);
 
-    if (stato === 'approvato' || stato === 'pubblicato') {
-      card.appendChild(el('div', 'cv-done', TOKEN[stato]));
+    if (stato === 'pubblicato') {
+      // Already out. Nothing to take back from here.
+      card.appendChild(el('div', 'cv-done', TOKEN.pubblicato));
+    } else if (stato === 'approvato') {
+      /* Approved, not yet published — still reachable. An approve click is
+         easy to fire by mistake, and without a way back the only fix was
+         asking the studio to change it by hand. */
+      var doneWrap = el('div', 'cv-done-wrap');
+      doneWrap.appendChild(el('div', 'cv-done', TOKEN.approvato));
+      var undo = el('button', 'cv-undo', 'Richiedi una modifica');
+      undo.onclick = function () { openRevision(index); };
+      doneWrap.appendChild(undo);
+      card.appendChild(doneWrap);
     } else if (stato === 'revisione') {
       card.appendChild(el('div', 'cv-pending', TOKEN.revisione));
     } else {
