@@ -162,10 +162,9 @@ window.Shell = (function () {
     })));
 
     hd.appendChild(h('div', { cls: 'seg seg--view' }, [
-      { id: 'list',     label: 'Tutti',      ic: 'rows' },
-      { id: 'board',    label: 'Pipeline',   ic: 'board' },
-      { id: 'grid',     label: 'Griglia',    ic: 'grid' },
-      { id: 'calendar', label: 'Calendario', ic: 'calendar' },
+      { id: 'list',  label: 'Tutti',    ic: 'rows' },
+      { id: 'board', label: 'Pipeline', ic: 'board' },
+      { id: 'grid',  label: 'Griglia',  ic: 'grid' },
     ].map(function (v) {
       var on = A.state.view === v.id;
       return h('button', {
@@ -173,6 +172,21 @@ window.Shell = (function () {
         on: { click: function () { A.set({ view: v.id }, 'view'); } },
       }, [icon(v.ic, 13), h('span', { cls: 'seg-t', text: v.label })]);
     })));
+
+    /* Opens the client's own portal, not a view of this one — an action, not
+       a state this header is "in", which is why it sits outside the toggle
+       group above rather than as a fourth member of it. Replaces the
+       workspace calendar's old slot here: the coverage calendar (left rail)
+       already covers "which days are filled" across every account, and
+       jumping straight to what the client sees is the more useful thing to
+       reach from here while planning. */
+    hd.appendChild(h('button', {
+      cls: 'btn btn--preview', attrs: { title: 'Apri il portale in una nuova scheda' },
+      on: { click: function () {
+        var c = A.client();
+        if (c) window.open(A.portalUrl(c), '_blank', 'noopener');
+      } },
+    }, [icon('eye', 13), h('span', { cls: 'seg-t', text: 'Anteprima' })]));
 
     hd.appendChild(h('button', {
       cls: 'btn btn--primary',
@@ -252,9 +266,13 @@ window.Shell = (function () {
         run: function () { window.open(A.portalUrl(c), '_blank', 'noopener'); } });
     });
     if (A.state.section === 'content' && A.state.routeId) {
-      [['list','Tutti'],['board','Pipeline'],['grid','Griglia'],['calendar','Calendario']].forEach(function (v) {
+      [['list','Tutti'],['board','Pipeline'],['grid','Griglia']].forEach(function (v) {
         out.push({ group: 'Vista', label: v[1], run: function () { A.set({ view: v[0] }, 'view'); } });
       });
+      out.push({ group: 'Azione', label: 'Anteprima cliente', run: function () {
+        var c = A.client();
+        if (c) window.open(A.portalUrl(c), '_blank', 'noopener');
+      } });
       out.push({ group: 'Azione', label: 'Nuovo contenuto',
         run: function () { A.set({ selectedId: A.createItem({}) }, 'create'); } });
     }
@@ -486,7 +504,7 @@ window.Shell = (function () {
       if (e.key === '1') A.set({ view: 'list' }, 'view');
       if (e.key === '2') A.set({ view: 'board' }, 'view');
       if (e.key === '3') A.set({ view: 'grid' }, 'view');
-      if (e.key === '4') A.set({ view: 'calendar' }, 'view');
+      if (e.key === '4') { var c4 = A.client(); if (c4) window.open(A.portalUrl(c4), '_blank', 'noopener'); }
       if (e.key === 'n') { e.preventDefault(); A.set({ selectedId: A.createItem({}) }, 'create'); }
       if (e.key === '[') A.set({ month: A.shiftMonth(-1), selectedId: null }, 'month');
       if (e.key === ']') A.set({ month: A.shiftMonth(1), selectedId: null }, 'month');

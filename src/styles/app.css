@@ -580,7 +580,7 @@ kbd {
   text-shadow: var(--glow);
 }
 .seg-b[aria-pressed="true"] + .seg-b { border-left-color: var(--brand); }
-@media (max-width: 1180px) { .seg--view .seg-t { display: none; } }
+@media (max-width: 1180px) { .seg--view .seg-t, .btn--preview .seg-t { display: none; } }
 
 /* ═══ BUTTONS ═════════════════════════════════════════════════════════════ */
 

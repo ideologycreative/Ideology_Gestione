@@ -243,5 +243,27 @@ await page.evaluate(async () => {
 await new Promise(r => setTimeout(r, 400));
 await shot('31-studio-light-workspace');
 
+// Header -- Calendario replaced by Anteprima in the content-tab view row,
+// and the URL now carries view/account/month/post as you work.
+await page.goto(BASE + '/', { waitUntil: 'networkidle2' });
+await page.setViewport({ width: 1900, height: 980, deviceScaleFactor: 1 });
+await page.evaluate(() => {
+  const btn = [...document.querySelectorAll('.rail-link')].find(b => /Chiaro|Scuro/.test(b.textContent));
+  // make sure we're back on dark for this shot regardless of prior state
+  if (btn && btn.textContent.trim().toLowerCase().startsWith('scuro')) btn.click();
+});
+await new Promise(r => setTimeout(r, 200));
+await page.evaluate(async () => {
+  const c = App.clients()[0];
+  location.hash = '#/content/' + c.id;
+  await new Promise(r => setTimeout(r, 400));
+  App.set({ view: 'board' });
+  await new Promise(r => setTimeout(r, 300));
+  const card = document.querySelector('.card');
+  if (card) card.click();
+});
+await new Promise(r => setTimeout(r, 400));
+await shot('32-header-anteprima');
+
 await browser.close().catch(() => {});
 console.log('\nsaved to docs/shots/');

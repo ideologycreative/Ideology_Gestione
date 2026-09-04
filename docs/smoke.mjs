@@ -166,7 +166,7 @@ try {
     check('old tab structure gone',  struct.noTabs === 0, struct.noTabs + ' leftovers');
     check('status bar in workspace', struct.hasStatus);
 
-    for (const [key, view, sel] of [['1','list','.lgrid'],['2','board','.board'],['3','grid','.ggrid'],['4','calendar','.cal']]) {
+    for (const [key, view, sel] of [['1','list','.lgrid'],['2','board','.board'],['3','grid','.ggrid']]) {
       await page.keyboard.press(key);
       await new Promise(r => setTimeout(r, 280));
       const r = await page.evaluate(s2 => {
@@ -175,6 +175,29 @@ try {
       }, sel);
       check('view "' + view + '" renders', r.present && r.kids > 0, r.kids + ' nodes');
     }
+
+    /* '4' is no longer a view — it opens the client's portal in a real new
+       tab, same as the header's Anteprima button. That backgrounds THIS
+       page, and Chrome throttles requestAnimationFrame for background tabs —
+       every render after this point would silently stall if the popup were
+       left open, which is exactly what broke this suite the first time this
+       was written. Close it and bring this page back to the foreground
+       before anything else runs. */
+    const beforePages = (await browser.pages()).length;
+    await page.keyboard.press('4');
+    await new Promise(r => setTimeout(r, 400));
+    const pages = await browser.pages();
+    check('"4" opens the portal in a new tab', pages.length === beforePages + 1, pages.length + ' pages');
+    const popup = pages[pages.length - 1];
+    if (popup && popup !== page) {
+      check('the new tab is this client\'s portal', /\/client\?t=/.test(popup.url()), popup.url());
+      try { await popup.close(); } catch (e) { /* already gone is fine */ }
+    }
+    await page.bringToFront();
+    // A backgrounded tab has its requestAnimationFrame throttled by the
+    // browser; bringToFront() alone does not guarantee the next frame fires
+    // immediately, so this gives it real margin rather than one tick.
+    await new Promise(r => setTimeout(r, 500));
 
     await page.keyboard.press('2');
     await new Promise(r => setTimeout(r, 280));
@@ -455,10 +478,14 @@ try {
 
     /* ── Tutti: the new default, date-wise view ───────────────────────────
        The default view is a BOOT-time read (shell.js reads the saved `view`
-       once, in boot()) — entering a client's workspace does not itself reset
-       it. So testing "the default" means clearing the saved UI state and
-       actually reloading, not just re-routing within the live page. */
-    await page.evaluate(() => window.IdeologyStore.setSetting('ui', {}));
+       once, in boot()). Testing "the default" means clearing the saved UI
+       state AND the current hash — the URL now carries an explicit ?view=
+       whenever one is set (by design, so a bookmarked link wins), and a
+       leftover one from an earlier test would otherwise win here too. */
+    await page.evaluate(() => {
+      window.IdeologyStore.setSetting('ui', {});
+      location.hash = '#/';
+    });
     await page.reload({ waitUntil: 'networkidle2' });
     const listView = await page.evaluate(async () => {
       const c = App.clients()[0];

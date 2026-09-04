@@ -152,7 +152,31 @@ window.App = (function () {
     });
     if (!changed) return;
     persist();
+    syncHash();
     emit(reason || 'set');
+  }
+
+  /* Keeps the URL a live description of the workspace: which view, which
+     channel, which month, which post is open. Every click that changes one
+     of those goes through set() above, so this single spot is what makes
+     "switch to Pipeline" or "open this post" show up in the address bar —
+     no call site had to be taught about the URL individually.
+
+     history.replaceState rather than location.hash=: it does not push a
+     history entry (so tabbing through five posts is not five back-button
+     presses to leave) and, just as importantly, does not fire 'hashchange' —
+     readRoute() would otherwise re-run on every click and fight this. */
+  function syncHash() {
+    if (state.section !== 'content' || !state.clientId) return;
+    var q = new URLSearchParams();
+    if (state.view && state.view !== 'list') q.set('view', state.view);
+    if (state.accountId) q.set('account', state.accountId);
+    if (state.month) q.set('month', state.month);
+    if (state.kind && state.kind !== 'feed') q.set('kind', state.kind);
+    if (state.selectedId) q.set('post', state.selectedId);
+    var qs = q.toString();
+    var full = '#/content/' + state.clientId + (qs ? '?' + qs : '');
+    if (location.hash !== full) history.replaceState(null, '', full);
   }
 
   function persist() {
@@ -189,7 +213,10 @@ window.App = (function () {
 
   function readRoute() {
     var raw = (location.hash || '#/').replace(/^#/, '');
-    var parts = raw.split('/').filter(Boolean);
+    var qIdx = raw.indexOf('?');
+    var query = qIdx >= 0 ? new URLSearchParams(raw.slice(qIdx + 1)) : null;
+    var pathPart = qIdx >= 0 ? raw.slice(0, qIdx) : raw;
+    var parts = pathPart.split('/').filter(Boolean);
     var section = parts[0] || 'home';
     var id = parts[1] || null;
 
@@ -211,15 +238,35 @@ window.App = (function () {
     }
 
     /* Entering a client's workspace binds the content state to that client
-       and picks a sane account/month, so a pasted link lands somewhere real. */
+       and picks a sane account/month, so a pasted link lands somewhere real.
+       Everything past "?" — view, account, month, kind, the open post — is
+       written by syncHash() above and read back here, which is what makes a
+       reload or a pasted link land exactly where it was. */
     if (section === 'content' && id) {
       var c = clients().find(function (x) { return x.id === id; });
       if (c) {
+        var switchingClient = state.clientId !== c.id;
         patch.clientId = c.id;
-        var stillValid = (c.accounts || []).some(function (a) { return a.id === state.accountId; });
-        if (!stillValid) patch.accountId = (c.accounts || [])[0] && c.accounts[0].id;
-        if (!state.month) patch.month = thisMonth();
-        patch.selectedId = null;
+
+        var qAccount = query && query.get('account');
+        var wantAccount = qAccount || state.accountId;
+        var stillValid = (c.accounts || []).some(function (a) { return a.id === wantAccount; });
+        patch.accountId = stillValid ? wantAccount : ((c.accounts || [])[0] && c.accounts[0].id);
+
+        patch.month = (query && query.get('month')) || state.month || thisMonth();
+
+        var qKind = query && query.get('kind');
+        if (qKind === 'story' || qKind === 'feed') patch.kind = qKind;
+
+        /* A different client always opens on the overview — the view is
+           something you navigate to within a session, not a property of the
+           client. An explicit ?view= (a pasted/bookmarked link) still wins,
+           on this client or any other. */
+        var qView = query && query.get('view');
+        if (qView) patch.view = qView;
+        else if (switchingClient) patch.view = 'list';
+
+        patch.selectedId = (query && query.get('post')) || null;
       }
     }
     set(patch, 'route');
@@ -660,7 +707,7 @@ window.App = (function () {
     if (!target) return;
     var kind = target._kind;
     writeKind(kind, readKind(kind).filter(function (it) { return it.id !== id; }));
-    if (state.selectedId === id) state.selectedId = null;
+    if (state.selectedId === id) { state.selectedId = null; syncHash(); }
     emit('remove');
   }
 
