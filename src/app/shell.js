@@ -71,7 +71,12 @@ window.Shell = (function () {
 
     rail.appendChild(h('div', { style: 'flex:1' }));
 
+    var isLight = A.state.theme === 'light';
     rail.appendChild(h('div', { cls: 'rail-ft' }, [
+      h('button', {
+        cls: 'rail-link', attrs: { title: isLight ? 'Passa al tema scuro' : 'Passa al tema chiaro' },
+        on: { click: function () { A.setTheme(isLight ? 'dark' : 'light'); } },
+      }, [icon(isLight ? 'moon' : 'sun', 12), isLight ? 'Scuro' : 'Chiaro']),
       h('button', { cls: 'rail-link', on: { click: openPalette } },
         [icon('search', 12), 'Cerca', h('kbd', { text: '⌘K' })]),
     ]));
@@ -426,6 +431,8 @@ window.Shell = (function () {
     A.state.view  = saved.view  || 'list';
     A.state.kind  = saved.kind  || 'feed';
     A.state.accountId = saved.accountId || null;
+    A.state.theme = saved.theme || 'dark';
+    document.documentElement.setAttribute('data-theme', A.state.theme);
 
     A.subscribe(function (reason) {
       render();

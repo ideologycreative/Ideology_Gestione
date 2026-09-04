@@ -41,10 +41,20 @@
 
 :root {
   --mono: 'Ideology Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  --rule: #232323;
-  --rule-2: #383838;
+  /* Aliased to the theme-aware border tokens from ideology-tokens.css rather
+     than a literal — this file predates the theme toggle, when the studio
+     was always dark, and every rule/border in it was written against these
+     two names. Re-pointing them here is what makes the whole app follow
+     [data-theme] without touching the ~140 places that use --rule. */
+  --rule: var(--border);
+  --rule-2: var(--border-strong);
   --glow: 0 0 12px rgba(242, 199, 0, .38);
   --track: .14em;
+
+  /* Form fields sit one step below the surface ladder in dark mode — sunken,
+     not just bordered. There is no "below white" on a light ground, so the
+     light override just below aliases this to a surface step instead. */
+  --input-bg: #0d0d0d;
 
   --rail-w: 208px;
   --insp-w: 340px;
@@ -55,6 +65,10 @@
      "19.89". A misread date is not an acceptable price for a stylistic zero,
      and unlike Gustavo's slashed zero this one is an addressable feature. */
   font-feature-settings: "zero" 0;
+}
+
+[data-theme="light"] {
+  --input-bg: var(--surface-lt);
 }
 
 * { box-sizing: border-box; }
@@ -75,6 +89,10 @@ body {
 
 /* Scanline wash + vignette: reads as a display surface. 2.5% and behind no
    text, so it never costs legibility. */
+/* A dark-room CRT texture — scanlines and a black vignette. It is a dark-UI
+   aesthetic choice, not a brand constant: on a white ground the vignette
+   reads as a dirty smudge at the edges rather than depth, so it is switched
+   off entirely under the light theme instead of re-tinted. */
 body::after {
   content: "";
   position: fixed; inset: 0;
@@ -86,6 +104,7 @@ body::after {
       transparent 1px, transparent 3px),
     radial-gradient(ellipse at 50% 40%, transparent 58%, rgba(0,0,0,.32) 100%);
 }
+[data-theme="light"] body::after { content: none; }
 
 ::selection { background: var(--brand); color: var(--brand-on); }
 :focus-visible { outline: 2px solid var(--brand); outline-offset: 1px; }
@@ -995,7 +1014,7 @@ body.is-dragging .col { background: rgba(242,199,0,.02); }
 
 .input {
   width: 100%;
-  background: #0d0d0d;
+  background: var(--input-bg);
   border: 1px solid var(--rule);
   color: var(--text);
   font-family: var(--font); font-size: 12px;
@@ -1194,7 +1213,7 @@ select.input { font-family: var(--mono); font-size: 10px; letter-spacing: .06em;
   display: none;
   align-items: flex-start; justify-content: center;
   padding-top: 14vh;
-  background: rgba(0,0,0,.72);
+  background: var(--overlay);
   backdrop-filter: blur(3px);
 }
 #palette.is-open { display: flex; }

@@ -218,5 +218,30 @@ if (foundSlideVideo) {
   console.log('  (skipped 28 — this seed has no carousel with a video slide)');
 }
 
+// Portal -- an approved (not yet published) card keeps a way back to revision.
+await shot('29-portal-approved-undo');
+
+// Studio -- the light theme, home and workspace.
+await page.goto(BASE + '/', { waitUntil: 'networkidle2' });
+await page.setViewport({ width: 1500, height: 980, deviceScaleFactor: 1 });
+await page.evaluate(() => {
+  const btn = [...document.querySelectorAll('.rail-link')].find(b => /Chiaro|Scuro/.test(b.textContent));
+  if (btn) btn.click();
+});
+await new Promise(r => setTimeout(r, 400));
+await shot('30-studio-light-theme');
+
+await page.evaluate(async () => {
+  const c = App.clients()[0];
+  location.hash = '#/content/' + c.id;
+  await new Promise(r => setTimeout(r, 400));
+  App.set({ view: 'list' });
+  await new Promise(r => setTimeout(r, 300));
+  const card = document.querySelector('.lcard');
+  if (card) card.click();
+});
+await new Promise(r => setTimeout(r, 400));
+await shot('31-studio-light-workspace');
+
 await browser.close().catch(() => {});
 console.log('\nsaved to docs/shots/');

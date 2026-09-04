@@ -682,6 +682,36 @@ try {
       check('a future-dated approved post is left alone', sweep.futureStaysApproved === true);
     }
 
+    /* ── Studio theme toggle ───────────────────────────────────────────────
+       The admin app was hardcoded dark; this is the app-wide light/dark
+       preference, separate from any client's own portal theme. */
+    const theme = await page.evaluate(async () => {
+      const before = document.documentElement.getAttribute('data-theme');
+      const bgBefore = getComputedStyle(document.documentElement).getPropertyValue('--bg').trim();
+      const toggleBtn = [...document.querySelectorAll('.rail-link')].find(b => /Chiaro|Scuro/.test(b.textContent));
+      if (!toggleBtn) return { skipped: true, why: 'no theme toggle in rail' };
+      toggleBtn.click();
+      await new Promise(r => setTimeout(r, 250));
+      const after = document.documentElement.getAttribute('data-theme');
+      const bgAfter = getComputedStyle(document.documentElement).getPropertyValue('--bg').trim();
+      const saved = window.IdeologyStore.getSetting('ui', {}).theme;
+      // flip back, so the rest of the suite runs against the usual dark bg
+      document.querySelector('.rail-link').click();
+      await new Promise(r => setTimeout(r, 250));
+      const restored = document.documentElement.getAttribute('data-theme');
+      return { skipped: false, before, after, bgBefore, bgAfter, saved, restored };
+    });
+    if (theme.skipped) {
+      check('theme toggle', false, theme.why);
+    } else {
+      check('starts dark', theme.before === 'dark', theme.before);
+      check('toggling flips data-theme to light', theme.after === 'light', theme.after);
+      check('the page background actually changes', theme.bgBefore !== theme.bgAfter,
+        theme.bgBefore + ' -> ' + theme.bgAfter);
+      check('the choice is persisted', theme.saved === 'light', theme.saved);
+      check('toggling again restores dark', theme.restored === 'dark', theme.restored);
+    }
+
     await page.close();
   }
 

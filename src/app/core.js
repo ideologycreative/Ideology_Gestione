@@ -127,6 +127,11 @@ window.App = (function () {
     kind: 'feed',
     selectedId: null,
     query: '',
+    /* The studio's OWN chrome, not a client's. Every client portal already
+       carries its own light/dark choice on client.theme — this is the
+       separate, app-wide preference for the admin side, previously hardcoded
+       to dark in the page markup. */
+    theme: 'dark',
   };
 
   var listeners = [];
@@ -155,8 +160,21 @@ window.App = (function () {
       S.setSetting('ui', {
         clientId: state.clientId, accountId: state.accountId,
         month: state.month, view: state.view, kind: state.kind,
+        theme: state.theme,
       });
     } catch (e) { /* quota — never interrupt the user over UI state */ }
+  }
+
+  /* Applies to <html> immediately (so every rule in app.css keyed off
+     [data-theme] repaints) and persists, so the next boot starts here
+     instead of flashing back to dark before JS runs. */
+  function setTheme(t) {
+    var next = t === 'light' ? 'light' : 'dark';
+    if (state.theme === next) return;
+    state.theme = next;
+    document.documentElement.setAttribute('data-theme', next);
+    persist();
+    emit('theme');
   }
 
   /* ── Routing ─────────────────────────────────────────────────────────────
@@ -875,6 +893,8 @@ window.App = (function () {
     board:    '<path d="M3 3h5v18H3zM10 3h5v12h-5zM17 3h4v7h-4"/>',
     grid:     '<path d="M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h7v7h-7"/>',
     rows:     '<path d="M3 5h18M3 12h18M3 19h18"/>',
+    sun:      '<circle cx="12" cy="12" r="4.5"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M19.1 4.9L17 7M7 17l-2.1 2.1"/>',
+    moon:     '<path d="M20 14.5A8.5 8.5 0 019.5 4a8.5 8.5 0 1010.5 10.5z"/>',
     calendar: '<path d="M3 5h18v16H3zM3 10h18M8 3v4M16 3v4"/>',
     plus:     '<path d="M12 5v14M5 12h14"/>',
     close:    '<path d="M6 6l12 12M18 6L6 18"/>',
@@ -915,6 +935,7 @@ window.App = (function () {
     createClient: createClient, updateClient: updateClient, removeClient: removeClient,
     addAccount: addAccount, updateAccount: updateAccount, removeAccount: removeAccount,
     portalUrl: portalUrl, newToken: newToken,
+    setTheme: setTheme,
     thisMonth: thisMonth, shiftMonth: shiftMonth,
     items: items, itemById: itemById, patchItem: patchItem,
     createItem: createItem, removeItem: removeItem, moveItem: moveItem,
