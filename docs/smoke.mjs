@@ -848,16 +848,28 @@ try {
         const b = document.querySelector('.cv-spon');
         if (!b) return { found: false };
         const r = b.getBoundingClientRect();
-        const card = b.closest('.cv-post').getBoundingClientRect();
+        const post = b.closest('.cv-post');
+        const card = post.getBoundingClientRect();
+        const brand = getComputedStyle(document.documentElement).getPropertyValue('--brand').trim();
+        const accent = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim();
         return {
           found: true,
           text: b.textContent.trim(),
-          // Top-right of the frame, as specified.
-          topRight: Math.abs(r.right - card.right) < 3 && Math.abs(r.top - card.top) < 3,
+          // Top-left — the type tag (Car/Reel) owns top-right.
+          topLeft: Math.abs(r.left - card.left) < 3 && Math.abs(r.top - card.top) < 3,
+          bg: getComputedStyle(b).backgroundColor,
+          brand, accent,
+          ringIsSpon: post.classList.contains('is-spon'),
         };
       });
       check('portal shows SPONSOR badge', shown.found, shown.text);
-      check('badge sits top-right of the frame', shown.topRight === true);
+      check('badge sits top-left of the frame', shown.topLeft === true);
+      check('sponsor ring is on the card', shown.ringIsSpon === true);
+      // Fixed brand yellow, not this client's own accent colour — the whole
+      // point is that it reads the same no matter whose portal it is on.
+      check('sponsor badge uses the fixed brand colour, not the client accent',
+        shown.brand !== '' && shown.accent !== '' && shown.brand !== shown.accent,
+        'brand=' + shown.brand + ' accent=' + shown.accent);
     }
 
     /* ── Client palette, identity and month range ────────────────────────

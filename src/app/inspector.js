@@ -72,6 +72,22 @@ window.Inspector = (function () {
       }, [icon('close', 14)]),
     ]));
 
+    /* ── Client feedback, read-only ───────────────────────────────────────
+       The one block in this panel the studio did not write, and the reason
+       the post is in In revisione — it used to sit at the bottom, under a
+       screenful of fields, which meant scrolling past the whole form just to
+       find out what the client actually asked for. Pinned here, between the
+       header and the scrolling body, it stays on screen no matter how far
+       down the form you scroll — a popup would need an extra click to see
+       something that should be the first thing you see. */
+    if (item.clientNote) {
+      mount.appendChild(h('div', { cls: 'insp-client' }, [
+        h('span', { cls: 'insp-client-hd',
+                    text: 'Richiesta di ' + (item.clientName || 'cliente') }),
+        h('p', { text: item.clientNote }),
+      ]));
+    }
+
     var body = h('div', { cls: 'insp-body' });
 
     /* ── Preview ────────────────────────────────────────────────────────── */
@@ -614,17 +630,6 @@ window.Inspector = (function () {
     });
     note.value = item.note || '';
     body.appendChild(field('Nota interna', note));
-
-    /* ── Client feedback, read-only ───────────────────────────────────────
-       Shown last and visually distinct: it is the one block in this panel the
-       studio did not write and must not quietly overwrite. */
-    if (item.clientNote) {
-      body.appendChild(h('div', { cls: 'insp-client' }, [
-        h('span', { cls: 'insp-client-hd',
-                    text: 'Richiesta di ' + (item.clientName || 'cliente') }),
-        h('p', { text: item.clientNote }),
-      ]));
-    }
 
     mount.appendChild(body);
     if (sameItem) body.scrollTop = lastScrollTop;

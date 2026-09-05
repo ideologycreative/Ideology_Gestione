@@ -217,7 +217,11 @@ select.cv-sel:focus-visible { outline: 2px solid var(--accent); outline-offset: 
 @media (max-width: 720px) { .cv-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 
 .cv-post { background: var(--bg); display: flex; flex-direction: column; position: relative; }
-.cv-post.is-spon { box-shadow: inset 0 0 0 1px var(--accent); }
+/* Fixed brand yellow, not the client's own accent — a sponsored ring in the
+   client's colour could land on almost anything (it very nearly matched the
+   Approvato bar's own teal for one client), and a legal disclosure needs to
+   look the same on every portal, not blend into whichever one it's on. */
+.cv-post.is-spon { box-shadow: inset 0 0 0 2px var(--brand); }
 
 .cv-media { position: relative; background: var(--surface-lt); cursor: zoom-in; overflow: hidden; flex-shrink: 0; }
 .cv-media img { width: 100%; height: 100%; object-fit: cover; display: block; }
@@ -233,7 +237,6 @@ select.cv-sel:focus-visible { outline: 2px solid var(--accent); outline-offset: 
   letter-spacing: .1em; text-transform: uppercase;
 }
 .cv-mark-tr { top: 0; right: 0; }
-.cv-mark-tr--shift { right: 92px; }
 .cv-mark-bl { bottom: 0; left: 0; }
 
 /* Reels carry a play glyph in the grid — the same signal the platforms use,
@@ -253,17 +256,22 @@ select.cv-sel:focus-visible { outline: 2px solid var(--accent); outline-offset: 
   border-bottom: 8px solid transparent;
 }
 
-/* The sponsorship disclosure. Top-right, in the client's accent: it is a
-   legal marker, so it is the one label allowed to compete with the image. */
+/* The sponsorship disclosure. Top-LEFT (the type tag owns top-right) and in
+   a fixed brand yellow, not the client's own accent — this is a legal
+   marker, so it has to read the same on every client's portal rather than
+   quietly taking on whatever colour that client happens to be. Bigger than
+   the type/date marks and glowing, on purpose: it is the one label in this
+   grid allowed to compete with the image. */
 .cv-spon {
-  position: absolute; top: 0; right: 0;
-  display: inline-flex; align-items: center; gap: 5px;
-  padding: 4px 8px;
-  background: var(--accent); color: var(--accent-on);
-  font-family: var(--mono); font-size: 9px; font-weight: 700;
+  position: absolute; top: 0; left: 0; z-index: 1;
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 6px 10px;
+  background: var(--brand); color: var(--brand-on);
+  font-family: var(--mono); font-size: 10px; font-weight: 800;
   letter-spacing: .12em; text-transform: uppercase;
+  box-shadow: 0 2px 12px rgba(242, 199, 0, .5);
 }
-.cv-spon i { width: 5px; height: 5px; background: var(--accent-on); border-radius: 50%; flex-shrink: 0; }
+.cv-spon i { width: 6px; height: 6px; background: var(--brand-on); border-radius: 50%; flex-shrink: 0; }
 
 .cv-meta { padding: 10px 12px 12px; display: flex; flex-direction: column; gap: 8px; flex: 1; }
 .cv-copy {
@@ -958,9 +966,8 @@ select.cv-sel:focus-visible { outline: 2px solid var(--accent); outline-offset: 
       sp.appendChild(document.createTextNode('Sponsor'));
       media.appendChild(sp);
     }
-    var shift = item.sponsored ? ' cv-mark-tr--shift' : '';
     if (item.type === 'carousel') {
-      media.appendChild(el('span', 'cv-mark-tr' + shift,
+      media.appendChild(el('span', 'cv-mark-tr',
         'Car ' + ((item.slides && item.slides.length) || '')));
       /* The cover is always slide 1's poster — if that slide is itself a
          clip, the cover needs the same play hint a reel gets, or opening it
@@ -969,7 +976,7 @@ select.cv-sel:focus-visible { outline: 2px solid var(--accent); outline-offset: 
         media.appendChild(el('span', 'cv-play'));
       }
     } else if (item.type === 'reel') {
-      media.appendChild(el('span', 'cv-mark-tr' + shift, 'Reel'));
+      media.appendChild(el('span', 'cv-mark-tr', 'Reel'));
       media.appendChild(el('span', 'cv-play'));
     }
     if (item.date) media.appendChild(el('span', 'cv-mark-bl', fmtDate(item.date)));

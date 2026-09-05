@@ -265,5 +265,40 @@ await page.evaluate(async () => {
 await new Promise(r => setTimeout(r, 400));
 await shot('32-header-anteprima');
 
+// Portal -- sponsor badge, fixed brand yellow, top-left, glowing ring.
+await page.evaluate(() => {
+  const c = App.clients().find(x => x.id === 'c_marefuori');
+  const acc = c.accounts[0];
+  const month = App.thisMonth();
+  const items = window.IdeologyStore.getFeed(acc.id, month).slice();
+  const approved = items.find(i => (i.apprStato || 'bozza') === 'approvato');
+  if (approved) approved.sponsored = true;
+  window.IdeologyStore.setFeed(acc.id, month, items);
+});
+await page.goto(BASE + '/client?t=' + TOKEN, { waitUntil: 'networkidle2' });
+await new Promise(r => setTimeout(r, 300));
+const sponY = await page.evaluate(() => {
+  const wrap = document.querySelector('.cv-spon');
+  if (!wrap) return null;
+  const r = wrap.closest('.cv-post').getBoundingClientRect();
+  return window.scrollY + r.top - 40;
+});
+if (sponY != null) { await page.evaluate(y => window.scrollTo(0, y), sponY); await new Promise(r => setTimeout(r, 200)); }
+await shot('33-sponsor-badge');
+
+// Studio -- the client's revision note pinned between header and body.
+await page.goto(BASE + '/', { waitUntil: 'networkidle2' });
+await page.evaluate(async () => {
+  const c = App.clients().find(x => x.id === 'c_marefuori');
+  location.hash = '#/content/' + c.id;
+  await new Promise(r => setTimeout(r, 400));
+  App.set({ view: 'board' });
+  await new Promise(r => setTimeout(r, 300));
+  const card = document.querySelector('.col[data-s="revisione"] .card');
+  if (card) card.click();
+});
+await new Promise(r => setTimeout(r, 400));
+await shot('34-inspector-note-top');
+
 await browser.close().catch(() => {});
 console.log('\nsaved to docs/shots/');
