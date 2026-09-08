@@ -208,13 +208,12 @@ body.has-inspector .app { grid-template-columns: var(--rail-w) 1fr var(--insp-w)
   background: var(--surface-lt);
   text-shadow: var(--glow);
 }
-/* Darkening the yellow twice still wasn't enough to read as clearly as the
-   plain black/white text next to it — because it never can be: any yellow
-   dark enough to hit real contrast on white stops looking gold and starts
-   looking brown. Same call the design already makes for the stat numbers
-   below: the colour carries on the BORDER (still there, still gold), the
-   TEXT itself just goes back to full contrast. */
-[data-theme="light"] .menu-item.is-on { color: var(--text); }
+/* Light mode: the unselected items read as full black rather than the
+   softer grey used everywhere else, so the menu itself is unmistakable —
+   and clicking one is still the one thing in the rail allowed to go gold
+   (--text-accent, already dialed back from the raw brand yellow). */
+[data-theme="light"] .menu-item:not(.is-on) { color: var(--text); }
+[data-theme="light"] .menu-item:hover:not(.is-on) { color: var(--text); }
 
 .rail-ft { border-top: 1px solid var(--rule); padding: 8px; display: flex; flex-direction: column; gap: 2px; }
 .rail-link {
