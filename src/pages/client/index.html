@@ -324,18 +324,10 @@ select.cv-sel:focus-visible { outline: 2px solid var(--accent); outline-offset: 
   letter-spacing: var(--track); text-transform: uppercase;
   display: flex; align-items: center; gap: 7px;
 }
-.cv-done-wrap { margin-top: auto; display: flex; flex-direction: column; }
-.cv-done-wrap .cv-done { margin-top: 0; }
-.cv-undo {
-  appearance: none; border: 1px solid var(--rule); border-top: 0; background: none;
-  color: var(--text-3); padding: 8px; min-height: 34px;
-  font-family: var(--mono); font-size: 9px; font-weight: 700;
-  letter-spacing: var(--track); text-transform: uppercase;
-  cursor: pointer;
-  transition: background .15s, color .15s;
-}
-.cv-undo:hover { background: var(--surface-lt); color: var(--warning-text); }
-.cv-undo:focus-visible { outline: 2px solid var(--accent); outline-offset: -3px; }
+/* The Approvato row: "Richiedi una modifica" plus the badge, side by side in
+   .cv-actions — same shape as Modifica|Approva, so every card's action row
+   is exactly one line and the grid's rows line up regardless of status. */
+.cv-done--inline { margin-top: 0; flex: 1; min-height: 44px; justify-content: center; }
 
 .cv-pending {
   margin-top: auto; padding: 12px;
@@ -1004,13 +996,16 @@ select.cv-sel:focus-visible { outline: 2px solid var(--accent); outline-offset: 
     } else if (stato === 'approvato') {
       /* Approved, not yet published — still reachable. An approve click is
          easy to fire by mistake, and without a way back the only fix was
-         asking the studio to change it by hand. */
-      var doneWrap = el('div', 'cv-done-wrap');
-      doneWrap.appendChild(el('div', 'cv-done', TOKEN.approvato));
-      var undo = el('button', 'cv-undo', 'Richiedi una modifica');
+         asking the studio to change it by hand. One row, same as every
+         other card's action row (Modifica|Approva, or Pubblicato alone) —
+         stacking the undo button under the badge made this card taller
+         than its neighbours and broke the grid's shared row height. */
+      var row = el('div', 'cv-actions');
+      var undo = el('button', 'cv-btn', 'Richiedi una modifica');
       undo.onclick = function () { openRevision(index); };
-      doneWrap.appendChild(undo);
-      card.appendChild(doneWrap);
+      row.appendChild(undo);
+      row.appendChild(el('div', 'cv-done cv-done--inline', TOKEN.approvato));
+      card.appendChild(row);
     } else if (stato === 'revisione') {
       card.appendChild(el('div', 'cv-pending', TOKEN.revisione));
     } else {

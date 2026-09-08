@@ -312,5 +312,30 @@ await page.evaluate(() => {
 await new Promise(r => setTimeout(r, 400));
 await shot('36-ugc-workspace');
 
+// Studio -- light theme, brand-yellow text swapped for the darker accent
+// shade so numbers/labels are readable on white.
+await page.goto(BASE + '/', { waitUntil: 'networkidle2' });
+await page.evaluate(() => {
+  const btn = [...document.querySelectorAll('.rail-link')].find(b => b.textContent.trim() === 'Chiaro');
+  if (btn) btn.click();
+});
+await new Promise(r => setTimeout(r, 300));
+await shot('37-home-light-fixed');
+await page.evaluate(() => {
+  const btn = [...document.querySelectorAll('.rail-link')].find(b => b.textContent.trim() === 'Scuro');
+  if (btn) btn.click();
+});
+await new Promise(r => setTimeout(r, 200));
+
+// Portal -- Approvato's undo button and badge share one row with the type
+// tag/actions of every other card, so the grid's rows line up.
+await page.goto(BASE + '/', { waitUntil: 'networkidle2' });
+const kalatToken = await page.evaluate(() => (App.clients().find(x => x.id === 'c_kalat') || {}).shareToken);
+if (kalatToken) {
+  await page.goto(BASE + '/client?t=' + kalatToken, { waitUntil: 'networkidle2' });
+  await new Promise(r => setTimeout(r, 400));
+  await shot('38-portal-row-alignment');
+}
+
 await browser.close().catch(() => {});
 console.log('\nsaved to docs/shots/');

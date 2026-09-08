@@ -1180,11 +1180,14 @@ try {
        yet published) post keeps a way back to revision, since an accidental
        "Approva" click used to be permanent from the client's side. */
     const undo = await page.evaluate(async () => {
-      const wraps = [...document.querySelectorAll('.cv-done-wrap')];
+      const badges = [...document.querySelectorAll('.cv-done--inline')];
       const publishedLabels = [...document.querySelectorAll('.cv-done')]
         .filter(e => e.textContent.indexOf('Pubblicato') >= 0).length;
-      if (!wraps.length) return { skipped: true, why: 'no approved (unpublished) card on screen', publishedLabels };
-      const btn = wraps[0].querySelector('.cv-undo');
+      if (!badges.length) return { skipped: true, why: 'no approved (unpublished) card on screen', publishedLabels };
+      const row = badges[0].closest('.cv-actions');
+      const sameRow = row.getBoundingClientRect().height === badges[0].getBoundingClientRect().height
+        && Math.abs(row.getBoundingClientRect().top - badges[0].getBoundingClientRect().top) < 2;
+      const btn = row.querySelector('.cv-btn');
       if (!btn) return { skipped: true, why: 'no undo control', publishedLabels };
       btn.click();
       await new Promise(r => setTimeout(r, 250));
@@ -1194,12 +1197,13 @@ try {
       await new Promise(r => setTimeout(r, 300));
       const closed = !document.getElementById('cv-modal').classList.contains('open');
       const pendingNow = document.querySelectorAll('.cv-pending').length > 0;
-      return { skipped: false, publishedLabels, opened, closed, pendingNow };
+      return { skipped: false, publishedLabels, opened, closed, pendingNow, sameRow };
     });
     if (undo.skipped) {
       check('approved post can be sent back for revision', false, undo.why);
     } else {
       check('published posts show a Pubblicato label', undo.publishedLabels > 0, undo.publishedLabels + '');
+      check('undo button and Approvato badge share one row', undo.sameRow === true);
       check('"request a change" opens the revision modal', undo.opened === true);
       check('sending it moves the post to revisione', undo.closed && undo.pendingNow);
     }
