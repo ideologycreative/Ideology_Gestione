@@ -25,11 +25,17 @@ change. Four reasons, none of them optional:
 
 ---
 
-## 2. Facebook schedules itself; Instagram does not
+## 2. Both networks get scheduled — the difference is who holds the post
+
+**To be unambiguous: scheduled auto-posting works on Instagram too.** The studio picks
+a date, the client approves, and it goes out by itself. Nobody opens an app.
+
+What differs is *where the post waits* until then:
 
 | | Facebook Page | Instagram |
 |---|---|---|
-| Scheduling | `published=false` + `scheduled_publish_time` — Meta holds and publishes it | **No equivalent.** `POST /media` (container) → `POST /media_publish` fires immediately |
+| Who holds it | **Meta.** `published=false` + `scheduled_publish_time` | **We do.** `POST /media` (container) → `POST /media_publish` fires immediately, so our worker calls it at the scheduled minute |
+| If our server is down at publish time | Publishes anyway | Waits — goes out when the worker is back (see catch-up window, §6.7) |
 | Container TTL | n/a | 24h |
 
 Business Suite *does* schedule Instagram — but Business Suite is Meta's own
@@ -119,6 +125,15 @@ Guards:
    worst outcome. Failure state on the card + notification.
 6. **Personal IG accounts cannot be published to at all** — Business/Creator only,
    linked to a Page. Worth auditing client accounts before building.
+7. **Instagram publishing depends on server uptime** (§2). Mitigations, all cheap:
+   - the worker claims any job whose `run_at` has passed, not only the current minute,
+     so a job missed during downtime still goes out once the worker is back
+   - a **catch-up window** (suggested: 60 min) — beyond it, don't silently post hours
+     late; mark the job `failed` and surface it, since a post going out at 3am
+     unannounced is worse than one that visibly didn't
+   - alert the studio if the worker misses its heartbeat
+   - optional: use Meta-side scheduling for Facebook (§2) so FB is immune to our
+     downtime, accepting two cancel/reschedule code paths as the cost
 
 ---
 
