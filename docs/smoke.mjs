@@ -73,7 +73,7 @@ try {
     check('brand token',        boot.brand.toUpperCase() === '#F2C700', boot.brand);
     check('page ground',        boot.bg === 'rgb(16, 16, 16)', boot.bg);
     check('mono face loaded',   boot.mono === true);
-    check('8 sections in menu', boot.menu.length === 8, boot.menu.join(' / '));
+    check('7 sections in menu', boot.menu.length === 7, boot.menu.join(' / '));
     check('boots on home',      boot.section === 'home' && boot.hasHero);
     check('home shows stats',   boot.stats === 5, boot.stats + ' stats');
 

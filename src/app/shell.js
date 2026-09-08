@@ -43,7 +43,10 @@ window.Shell = (function () {
     { id: 'ugc',      path: '/ugc',      label: 'UGC',          ic: 'clapper' },
     { id: 'calendar', path: '/calendar', label: 'Calendario',   ic: 'calendar' },
     { id: 'preview',  path: '/preview',  label: 'Anteprima',    ic: 'eye'   },
-    { id: 'connections', path: '/connections', label: 'Connessioni', ic: 'link' },
+    /* Connessioni is deliberately NOT here: the rail footer already carries it,
+       with the connected account's name and its status. Two links to the same
+       page in one rail is noise. It stays routable at #/connections and stays
+       in the command palette below. */
     { id: 'settings', path: '/settings', label: 'Impostazioni', ic: 'cog'   },
   ];
 
@@ -306,6 +309,8 @@ window.Shell = (function () {
     MENU.forEach(function (m) {
       out.push({ group: 'Vai a', label: m.label, run: function () { A.go(m.path); } });
     });
+    out.push({ group: 'Vai a', label: 'Connessioni',
+      run: function () { A.go('/connections'); } });
     A.clients().forEach(function (c) {
       out.push({ group: 'Contenuti', label: c.name,
         run: function () { A.go('/content/' + c.id); } });
