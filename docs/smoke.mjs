@@ -722,8 +722,11 @@ try {
       const after = document.documentElement.getAttribute('data-theme');
       const bgAfter = getComputedStyle(document.documentElement).getPropertyValue('--bg').trim();
       const saved = window.IdeologyStore.getSetting('ui', {}).theme;
-      // flip back, so the rest of the suite runs against the usual dark bg
-      document.querySelector('.rail-link').click();
+      // Flip back, so the rest of the suite runs against the usual dark bg.
+      // Matched by label, not by ".rail-link" position — the Meta connection
+      // line shares that class and sits above this one in the footer.
+      [...document.querySelectorAll('.rail-link')]
+        .find(b => /Chiaro|Scuro/.test(b.textContent)).click();
       await new Promise(r => setTimeout(r, 250));
       const restored = document.documentElement.getAttribute('data-theme');
       return { skipped: false, before, after, bgBefore, bgAfter, saved, restored };
@@ -868,6 +871,52 @@ try {
       check('losing the connection breaks its bindings', meta.brokenCount === 2,
         meta.brokenCount + ' broken');
       check('broken bindings are surfaced on the connections page', meta.warnShown === true);
+    }
+
+    /* The rail's Meta line. It exists so an expired token cannot be something
+       you only discover by visiting the right page. */
+    const railConn = await page.evaluate(async () => {
+      const read = () => {
+        const el = document.querySelector('.rail-conn');
+        if (!el) return null;
+        return {
+          label: (el.querySelector('.rail-conn-label') || {}).textContent,
+          state: el.getAttribute('data-s'),
+          dot: !!el.querySelector('.rail-conn-dot'),
+        };
+      };
+      const S = window.IdeologyStore;
+      const before = read();
+      if (!before) return { skipped: true, why: 'no rail connection line' };
+
+      S.set('connections', S.get('connections').map(c =>
+        Object.assign({}, c, { expiresAt: new Date(Date.now() - 86400000).toISOString() })));
+      App.emit('connections');
+      await new Promise(r => setTimeout(r, 350));
+      const expired = read();
+
+      const conn = App.connections()[0];
+      App.removeConnection(conn.id);
+      await new Promise(r => setTimeout(r, 350));
+      const none = read();
+
+      App.connectMetaMock();
+      await new Promise(r => setTimeout(r, 350));
+      const navSection = (function () { document.querySelector('.rail-conn').click(); return null; })();
+      await new Promise(r => setTimeout(r, 350));
+
+      return { skipped: false, before, expired, none, section: App.state.section };
+    });
+    if (railConn.skipped) {
+      check('Meta line in the rail', false, railConn.why);
+    } else {
+      check('rail shows the connected account name',
+        !!railConn.before.label && railConn.before.label !== 'Collega Meta', railConn.before.label);
+      check('an expired token shows loudly in the rail',
+        railConn.expired.state === 'expired' && railConn.expired.dot === true);
+      check('with no connection the rail invites you to connect',
+        railConn.none.label === 'Collega Meta');
+      check('clicking it opens Connessioni', railConn.section === 'connections');
     }
 
     await page.close();

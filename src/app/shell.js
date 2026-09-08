@@ -75,6 +75,7 @@ window.Shell = (function () {
 
     var isLight = A.state.theme === 'light';
     rail.appendChild(h('div', { cls: 'rail-ft' }, [
+      metaLink(),
       h('button', {
         cls: 'rail-link', attrs: { title: isLight ? 'Passa al tema scuro' : 'Passa al tema chiaro' },
         on: { click: function () { A.setTheme(isLight ? 'dark' : 'light'); } },
@@ -82,6 +83,54 @@ window.Shell = (function () {
       h('button', { cls: 'rail-link', on: { click: openPalette } },
         [icon('search', 12), 'Cerca', h('kbd', { text: '⌘K' })]),
     ]));
+  }
+
+  /* Meta connection, parked in the rail so it is on screen from every section.
+     It carries the connected account's name — but the reason it lives here
+     rather than only on the Connessioni page is the failure case: an expired
+     token or a binding pointing at a page we lost means posts quietly stop
+     going out, and that cannot be something you only discover by visiting the
+     right page. A problem shows as a dot here, everywhere, all the time. */
+  function metaLink() {
+    var conns = A.connections();
+
+    if (!conns.length) {
+      return h('button', {
+        cls: 'rail-link rail-conn', attrs: { title: 'Collega un account Meta' },
+        on: { click: function () { A.go('/connections'); } },
+      }, [
+        icon('link', 12),
+        h('span', { cls: 'rail-conn-label', text: 'Collega Meta' }),
+      ]);
+    }
+
+    var worst = 'active';
+    conns.forEach(function (c) {
+      var s = A.connectionStatus(c);
+      if (s === 'expired') worst = 'expired';
+      else if (s === 'expiring' && worst !== 'expired') worst = 'expiring';
+    });
+    var brokenCount = 0;
+    A.clients().forEach(function (c) { brokenCount += A.clientBindingIssues(c).length; });
+    if (brokenCount && worst === 'active') worst = 'broken';
+
+    var label = conns.length === 1
+      ? (conns[0].accountName || 'Account Meta')
+      : conns.length + ' account Meta';
+
+    var title = worst === 'expired' ? 'Connessione Meta scaduta — riconnetti'
+      : worst === 'expiring' ? 'Il token Meta sta per scadere'
+      : brokenCount ? brokenCount + ' collegamenti da sistemare'
+      : 'Account Meta collegato';
+
+    return h('button', {
+      cls: 'rail-link rail-conn', attrs: { title: title, 'data-s': worst },
+      on: { click: function () { A.go('/connections'); } },
+    }, [
+      icon('link', 12),
+      h('span', { cls: 'rail-conn-label', text: label }),
+      worst === 'active' ? null : h('i', { cls: 'rail-conn-dot' }),
+    ]);
   }
 
   /* ══ HEADER ═════════════════════════════════════════════════════════════ */

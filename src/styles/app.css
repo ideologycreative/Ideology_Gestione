@@ -226,6 +226,19 @@ body.has-inspector .app { grid-template-columns: var(--rail-w) 1fr var(--insp-w)
   transition: color var(--t-fast), background var(--t-fast);
 }
 .rail-link:hover { color: var(--text-accent); background: var(--surface-lt); }
+
+/* The Meta connection line. The account name can be anything, so it truncates
+   rather than wrapping and shoving the rest of the footer around. */
+.rail-conn-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.rail-conn-dot {
+  margin-left: auto; flex-shrink: 0;
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--warning-text);
+}
+.rail-conn[data-s="expired"] { color: var(--danger-text); }
+.rail-conn[data-s="expired"] .rail-conn-dot { background: var(--danger-text); }
+.rail-conn[data-s="expiring"] { color: var(--warning-text); }
+.rail-conn[data-s="broken"]   { color: var(--warning-text); }
 kbd {
   margin-left: auto;
   border: 1px solid var(--rule); padding: 1px 4px;

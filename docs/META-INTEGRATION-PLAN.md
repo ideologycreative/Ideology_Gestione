@@ -35,7 +35,7 @@ What differs is *where the post waits* until then:
 | | Facebook Page | Instagram |
 |---|---|---|
 | Who holds it | **Meta.** `published=false` + `scheduled_publish_time` | **We do.** `POST /media` (container) → `POST /media_publish` fires immediately, so our worker calls it at the scheduled minute |
-| If our server is down at publish time | Publishes anyway | Waits — goes out when the worker is back (see catch-up window, §6.7) |
+| If our server is down at publish time | Publishes anyway | Waits — goes out when the worker is back (see catch-up window, §6.8) |
 | Container TTL | n/a | 24h |
 
 Business Suite *does* schedule Instagram — but Business Suite is Meta's own
@@ -125,7 +125,14 @@ Guards:
    worst outcome. Failure state on the card + notification.
 6. **Personal IG accounts cannot be published to at all** — Business/Creator only,
    linked to a Page. Worth auditing client accounts before building.
-7. **Instagram publishing depends on server uptime** (§2). Mitigations, all cheap:
+7. **Key a connection by the Meta account, not by a local id.** Surfaced while
+   building the UI: "Riconnetti" keeps the same connection record and bindings
+   survive, but disconnect-then-connect-again creates a new record and every
+   binding that pointed at the old one breaks — even though it is the *same*
+   Meta account with the *same* pages. Once real OAuth exists, identify a
+   connection by the Meta user/business ID so reconnecting the same account
+   restores its bindings instead of orphaning them.
+8. **Instagram publishing depends on server uptime** (§2). Mitigations, all cheap:
    - the worker claims any job whose `run_at` has passed, not only the current minute,
      so a job missed during downtime still goes out once the worker is back
    - a **catch-up window** (suggested: 60 min) — beyond it, don't silently post hours
