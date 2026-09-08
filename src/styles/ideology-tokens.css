@@ -251,9 +251,12 @@
   --surface-hi: #ededed;
   --overlay:    rgba(16, 16, 16, .45);
 
-  --border:        #e4e4e4;
-  --border-lt:     #f0f0f0;
-  --border-strong: #cfcfcf;
+  /* A little darker than a typical light theme's hairlines — this UI's whole
+     identity is drawn in rules and brackets, not shadowed cards, so a border
+     doing that job at ~1.05:1 against white read as barely there at all. */
+  --border:        #d8d8d8;
+  --border-lt:     #e8e8e8;
+  --border-strong: #b0b0b0;
 
   --text:   #101010;
   --text-2: #5c5c5c;
@@ -265,8 +268,11 @@
   --placeholder: #a3a3a3;
 
   /* Yellow on white is weak for anything small — text and thin borders switch
-     to the darker shade, while fills keep the true brand yellow. */
-  --brand-dk:   #b89600;
+     to the darker shade, while fills keep the true brand yellow. Darker than
+     a first pass at this (#b89600, ~2.9:1) — that still read as pale gold at
+     a glance and undersold everything it was meant to draw the eye to; this
+     clears 4.5:1 against white with real margin. */
+  --brand-dk:   #7a5c00;
   --brand-tint:   rgba(242, 199, 0, .18);
   --brand-tint-2: rgba(242, 199, 0, .32);
 

@@ -69,6 +69,13 @@
 
 [data-theme="light"] {
   --input-bg: var(--surface-lt);
+  /* --glow is a bloom effect — bright yellow light spilling on a dark
+     ground. On white it doesn't read as a glow, it reads as a blur: the
+     stat numbers, the active nav item, the selected-card ring all lost
+     definition instead of gaining emphasis. Every place that used it for
+     colour already also changes border/text colour on its own, so removing
+     the shadow costs no feedback, just the haze. */
+  --glow: none;
 }
 
 * { box-sizing: border-box; }
@@ -185,9 +192,9 @@ body.has-inspector .app { grid-template-columns: var(--rail-w) 1fr var(--insp-w)
 .menu-item {
   appearance: none; border: 0; background: none;
   display: flex; align-items: center; gap: 10px;
-  padding: 10px 14px;
-  font-family: var(--mono); font-size: 10px;
-  letter-spacing: var(--track); text-transform: uppercase;
+  padding: 11px 14px;
+  font-family: var(--mono); font-size: 12px;
+  letter-spacing: .09em; text-transform: uppercase;
   color: var(--text-3);
   text-align: left; cursor: pointer;
   border-left: 2px solid transparent;
@@ -196,6 +203,7 @@ body.has-inspector .app { grid-template-columns: var(--rail-w) 1fr var(--insp-w)
 .menu-item:hover { color: var(--text-2); background: var(--surface-lt); }
 .menu-item.is-on {
   color: var(--text-accent);
+  font-weight: 700;
   border-left-color: var(--text-accent);
   background: var(--surface-lt);
   text-shadow: var(--glow);
