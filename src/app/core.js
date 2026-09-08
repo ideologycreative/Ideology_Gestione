@@ -1012,7 +1012,12 @@ window.App = (function () {
      Everything a client publishes in a month, across EVERY account and both
      kinds, grouped by day. Feeds the Calendario section, which answers one
      question — which days are covered and which are empty — so it must not be
-     narrowed to a single account the way the workspace views are. */
+     narrowed to a single account the way the workspace views are.
+
+     Bozza is excluded on purpose: a day that only holds an untouched draft
+     is not "covered" in the sense this view exists to answer, and counting
+     it made early-stage work look like planned coverage before anyone had
+     actually decided to send it anywhere. */
 
   function clientMonthDays(clientId, monthStr) {
     var c = client(clientId);
@@ -1024,6 +1029,8 @@ window.App = (function () {
       [['feed', S.getFeed(a.id, mo)], ['story', S.getStories(a.id, mo)]]
         .forEach(function (pair) {
           (pair[1] || []).forEach(function (it) {
+            var stato = it.apprStato || 'bozza';
+            if (stato === 'bozza') return;
             var d = dayOf(it.date);
             if (!d) return;
             (byDay[d] = byDay[d] || []).push({
@@ -1031,7 +1038,7 @@ window.App = (function () {
               kind: pair[0],
               type: it.type || 'photo',
               platform: a.platform,
-              stato: it.apprStato || 'bozza',
+              stato: stato,
               sponsored: !!it.sponsored,
             });
           });

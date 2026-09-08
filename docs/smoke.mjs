@@ -268,6 +268,57 @@ try {
     check('sponsored dot is larger, not just coloured',
       cov.sponSize > cov.plainSize, cov.plainSize + 'px -> ' + cov.sponSize + 'px');
 
+    /* Bozza does not count as coverage, and a channel-shared post correctly
+       shows one dot per channel — verified together because the second was
+       reported as "looks like a duplicate bug" when it is really the first
+       (sponsorship syncs across a shared post's channels) made invisible by
+       dot tooltips that didn't say which platform each dot was. */
+    const dup = await page.evaluate(async () => {
+      const c = App.clients().find(x => x.id === 'c_marefuori');
+      const month = App.thisMonth();
+      const ig = c.accounts.find(a => a.platform === 'Instagram').id;
+      const fb = c.accounts.find(a => a.platform === 'Facebook').id;
+      if (!fb) return { skipped: true, why: 'seed client has no Facebook account' };
+
+      const feed = window.IdeologyStore.getFeed(ig, month).slice();
+      feed[0] = Object.assign({}, feed[0], { date: '2026-09-03', sponsored: true, apprStato: 'approvato' });
+      feed[1] = Object.assign({}, feed[1], { date: '2026-09-03', sponsored: false, apprStato: 'bozza' });
+      window.IdeologyStore.setFeed(ig, month, feed);
+      const fbCopy = Object.assign({}, feed[0], { id: 'i_smoke_fb_copy' });
+      window.IdeologyStore.setFeed(fb, month, [fbCopy].concat(window.IdeologyStore.getFeed(fb, month)));
+
+      const day3 = App.clientMonthDays(c.id, month)[3] || [];
+      location.hash = '#/calendar/' + c.id;
+      await new Promise(r => setTimeout(r, 420));
+      // The writes above went straight through IdeologyStore, bypassing
+      // core.js's own wrappers — nothing emitted, so if this exact hash was
+      // already showing (from an earlier test's navigation) it would not
+      // re-render and the page would still show what was there before this
+      // test's data existed. Force it.
+      App.set({ month: month }, 'month');
+      window.Shell.render();
+      await new Promise(r => setTimeout(r, 300));
+      const cell = [...document.querySelectorAll('.cov-cell')]
+        .find(el => (el.querySelector('.cov-day') || {}).textContent === '03');
+      const dotTitles = cell ? [...cell.querySelectorAll('.dot')].map(d => d.getAttribute('title')) : [];
+
+      return {
+        skipped: false,
+        bozzaExcluded: !day3.some(x => x.stato === 'bozza'),
+        sponsoredOnDay3: day3.filter(x => x.sponsored).length,
+        namesEachPlatform: dotTitles.filter(t => /Instagram|Facebook/.test(t || '')).length,
+      };
+    });
+    if (dup.skipped) {
+      check('bozza / multi-channel coverage counting', false, dup.why);
+    } else {
+      check('bozza items are excluded from the coverage calendar', dup.bozzaExcluded === true);
+      check('a post shared to two channels shows two dots, correctly',
+        dup.sponsoredOnDay3 === 2, dup.sponsoredOnDay3 + ' sponsored dots');
+      check('each dot names its platform, so that is not mistaken for a duplicate bug',
+        dup.namesEachPlatform === 2, dup.namesEachPlatform + ' labelled');
+    }
+
     /* Photo, carousel, reel, story and sponsored each need their own colour —
        a coverage map where every mark looks the same is just a density plot. */
     const palette = await page.evaluate(() => {
