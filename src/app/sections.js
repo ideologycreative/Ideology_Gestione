@@ -448,6 +448,13 @@ window.Sections = (function () {
         }, [icon('trash', 13)]),
       ]));
       accCard.appendChild(row);
+
+      /* Which real Meta page this channel publishes to. Only meaningful for
+         the networks Meta actually owns — a TikTok or LinkedIn row has nothing
+         to bind, and pretending otherwise would be noise. */
+      if (a.platform === 'Instagram' || a.platform === 'Facebook') {
+        accCard.appendChild(metaBindingRow(c, a));
+      }
     });
 
     if (!(c.accounts || []).length) {
@@ -502,6 +509,88 @@ window.Sections = (function () {
 
     page.appendChild(grid);
     mount.appendChild(page);
+  }
+
+  /* ── Meta page binding, per client channel ───────────────────────────────
+     The point where "I have a lot of client pages under one account and they
+     must never get mixed" is actually enforced. Three things do that work:
+     the bound page's REAL name from Meta is shown (not the name someone typed
+     into the field above it), a page already taken by another client cannot be
+     picked, and a binding that stops resolving turns loud instead of silently
+     failing at publish time. */
+  function metaBindingRow(c, a) {
+    var wrap = h('div', { cls: 'bind-row' });
+    var page = A.boundPage(a);
+    var issue = A.bindingIssue(a);
+
+    if (A.isBound(a) && page && !issue) {
+      wrap.classList.add('is-ok');
+      wrap.appendChild(h('span', { cls: 'bind-icon', text: '✓' }));
+      wrap.appendChild(h('div', { cls: 'bind-id' }, [
+        h('span', { cls: 'bind-page', text: page.name }),
+        h('span', { cls: 'bind-sub', text: a.platform === 'Instagram' && page.igUsername
+          ? '@' + page.igUsername
+          : 'Pagina Facebook' }),
+      ]));
+    } else if (A.isBound(a)) {
+      wrap.classList.add('is-bad');
+      wrap.appendChild(h('span', { cls: 'bind-icon', text: '!' }));
+      wrap.appendChild(h('div', { cls: 'bind-id' }, [
+        h('span', { cls: 'bind-page', text: page ? page.name : 'Pagina non disponibile' }),
+        h('span', { cls: 'bind-sub', text: issue }),
+      ]));
+    } else {
+      wrap.appendChild(h('span', { cls: 'bind-icon bind-icon--none', text: '·' }));
+      wrap.appendChild(h('div', { cls: 'bind-id' }, [
+        h('span', { cls: 'bind-page bind-page--none', text: 'Nessuna pagina Meta collegata' }),
+        h('span', { cls: 'bind-sub', text: 'Questo canale non pubblicherà finché non scegli una pagina.' }),
+      ]));
+    }
+
+    var pages = A.metaPages();
+    if (!pages.length) {
+      wrap.appendChild(h('button', {
+        cls: 'btn btn--xs', on: { click: function () { A.go('/connections'); } },
+      }, ['Collega Meta']));
+      return wrap;
+    }
+
+    /* A select rather than a dialog: the whole decision is "which of these
+       pages", and every constraint (already taken, wrong IG account type, no
+       IG linked) can be said in the option label itself. */
+    var picker = h('select', {
+      cls: 'input input--sm bind-picker', attrs: { 'aria-label': 'Pagina Meta' },
+      on: { change: function () {
+        if (!picker.value) { A.unbindAccount(c.id, a.id); window.Shell.toast('Pagina scollegata'); return; }
+        var parts = picker.value.split('|');
+        var res = A.bindAccount(c.id, a.id, parts[0], parts[1]);
+        window.Shell.toast(res.ok ? 'Collegato a ' + res.page.name : res.reason);
+      } },
+    });
+    picker.appendChild(h('option', { text: '— nessuna —', attrs: { value: '' } }));
+
+    pages.forEach(function (p) {
+      var taken = A.pageBoundTo(p.connectionId, p.pageId, a.id);
+      var label = p.name;
+      var blocked = false;
+
+      if (a.platform === 'Instagram') {
+        if (!p.igUserId) { label += ' — nessun IG collegato'; blocked = true; }
+        else if (p.igAccountType === 'PERSONAL') { label += ' — IG personale, non pubblicabile'; blocked = true; }
+        else label += ' — @' + p.igUsername;
+      }
+      if (taken) { label += ' (già su ' + taken.client.name + ')'; blocked = true; }
+
+      var opt = h('option', {
+        text: label,
+        attrs: { value: p.connectionId + '|' + p.pageId, disabled: blocked ? 'disabled' : null },
+      });
+      if (a.meta && a.meta.pageId === p.pageId && a.meta.connectionId === p.connectionId) opt.selected = true;
+      picker.appendChild(opt);
+    });
+
+    wrap.appendChild(picker);
+    return wrap;
   }
 
   function fld(label, control, hint) {
@@ -808,6 +897,179 @@ window.Sections = (function () {
     mount.appendChild(page);
   }
 
+  /* ══ CONNESSIONI ════════════════════════════════════════════════════════
+     The studio half of the Meta integration: which Meta account is connected
+     and which pages it can reach. The other half — which page a given client
+     publishes to — lives on the client's own card, because that is where the
+     "these must never get mixed" guarantee has to be visible.
+
+     Everything here is read-only status plus connect/reconnect/remove. It is
+     checked rarely, which is exactly why the states that matter (a token about
+     to expire, a binding pointing at a page we lost) have to shout rather than
+     wait to be noticed. */
+
+  function statusPill(status, daysLeft) {
+    var label = status === 'expired' ? 'Scaduta'
+      : status === 'expiring' ? 'Scade fra ' + daysLeft + 'g'
+      : 'Attiva';
+    return h('span', { cls: 'conn-pill', attrs: { 'data-s': status }, text: label });
+  }
+
+  function renderConnections(mount) {
+    var page = h('div', { cls: 'page' });
+    var conns = A.connections();
+
+    page.appendChild(pageHead('Connessioni',
+      'Account Meta collegati. Le pagine si assegnano poi a ogni cliente.',
+      conns.length ? h('button', {
+        cls: 'btn btn--primary',
+        on: { click: function () {
+          A.connectMetaMock();
+          window.Shell.toast('Account Meta collegato (simulazione)');
+        } },
+      }, [icon('plus', 13), 'Collega account']) : null
+    ));
+
+    /* Honest about what this is until the backend exists. Connecting for real
+       needs a server to hold the app secret — see the plan doc. */
+    page.appendChild(h('div', { cls: 'conn-note' }, [
+      h('b', { text: 'Modalità dimostrativa' }),
+      h('span', { text: 'La connessione reale a Meta richiede il backend: il collegamento OAuth e i token devono stare sul server, mai nel browser. Qui l’interfaccia funziona su dati simulati.' }),
+    ]));
+
+    /* Bindings that no longer resolve, gathered across every client — the one
+       thing on this page that is genuinely urgent. */
+    var broken = [];
+    A.clients().forEach(function (c) {
+      A.clientBindingIssues(c).forEach(function (b) {
+        broken.push({ client: c, account: b.account, issue: b.issue });
+      });
+    });
+    if (broken.length) {
+      var warn = h('div', { cls: 'conn-warn' }, [
+        h('b', { text: '[!!] ' + broken.length + (broken.length === 1 ? ' collegamento da sistemare' : ' collegamenti da sistemare') }),
+      ]);
+      broken.forEach(function (b) {
+        warn.appendChild(h('button', {
+          cls: 'conn-warn-row',
+          on: { click: function () { A.go('/clients/' + b.client.id); } },
+        }, [
+          h('span', { cls: 'conn-warn-client', text: b.client.name + ' · ' + b.account.platform }),
+          h('span', { cls: 'conn-warn-msg', text: b.issue }),
+        ]));
+      });
+      page.appendChild(warn);
+    }
+
+    if (!conns.length) {
+      page.appendChild(h('div', { cls: 'empty' }, [
+        h('p', { text: 'Nessun account Meta collegato.' }),
+        h('p', { cls: 'note-line',
+          text: 'Collegando il tuo account Meta, il tool vede le pagine Facebook che gestisci e gli account Instagram associati. Ogni cliente viene poi assegnato a una pagina specifica dalla sua scheda.' }),
+        h('button', {
+          cls: 'btn btn--primary',
+          on: { click: function () {
+            A.connectMetaMock();
+            window.Shell.toast('Account Meta collegato (simulazione)');
+          } },
+        }, [icon('plus', 13), 'Collega account Meta']),
+      ]));
+      mount.appendChild(page);
+      return;
+    }
+
+    conns.forEach(function (conn) {
+      var status = A.connectionStatus(conn);
+      var days = A.connectionDaysLeft(conn);
+      var pages = conn.pages || [];
+      var boundCount = pages.filter(function (p) {
+        return !!A.pageBoundTo(conn.id, p.pageId);
+      }).length;
+
+      var card = h('section', { cls: 'card-panel card-panel--span conn-card' });
+
+      card.appendChild(h('div', { cls: 'conn-hd' }, [
+        h('span', { cls: 'conn-mark', text: 'f' , attrs: { 'aria-hidden': 'true' } }),
+        h('div', { cls: 'conn-id' }, [
+          h('span', { cls: 'conn-name', text: conn.accountName }),
+          h('span', { cls: 'conn-biz', text: conn.businessName || 'Account personale' }),
+        ]),
+        h('div', { style: 'flex:1' }),
+        statusPill(status, days),
+      ]));
+
+      card.appendChild(h('p', { cls: 'panel-sub', text:
+        pages.length + (pages.length === 1 ? ' pagina disponibile' : ' pagine disponibili') +
+        ' · ' + boundCount + ' assegnate a clienti' +
+        (conn.expiresAt ? ' · token valido fino al ' + fmtDay(conn.expiresAt) : '') }));
+
+      if (status === 'expired') {
+        card.appendChild(h('div', { cls: 'conn-expired',
+          text: 'Connessione scaduta: nessun contenuto verrà pubblicato finché non riconnetti.' }));
+      }
+
+      var list = h('div', { cls: 'conn-pages' });
+      pages.forEach(function (p) {
+        var taken = A.pageBoundTo(conn.id, p.pageId);
+        var row = h('div', { cls: 'conn-page' + (taken ? ' is-bound' : '') });
+
+        row.appendChild(h('div', { cls: 'conn-page-id' }, [
+          h('span', { cls: 'conn-page-name', text: p.name }),
+          h('span', { cls: 'conn-page-cat', text: p.category || '' }),
+        ]));
+
+        var tags = h('div', { cls: 'conn-page-tags' });
+        tags.appendChild(h('span', { cls: 'conn-tag', text: 'FB' }));
+        if (p.igUserId) {
+          tags.appendChild(h('span', {
+            cls: 'conn-tag' + (p.igAccountType === 'PERSONAL' ? ' conn-tag--bad' : ' conn-tag--ig'),
+            attrs: { title: p.igAccountType === 'PERSONAL'
+              ? 'Account personale: non pubblicabile via API'
+              : 'Instagram ' + (p.igAccountType || '').toLowerCase() },
+            text: 'IG',
+          }));
+        }
+        row.appendChild(tags);
+
+        row.appendChild(h('span', {
+          cls: 'conn-page-to' + (taken ? '' : ' is-free'),
+          text: taken ? taken.client.name : 'non assegnata',
+        }));
+        list.appendChild(row);
+      });
+      card.appendChild(list);
+
+      card.appendChild(h('div', { cls: 'f-row', style: 'margin-top:14px' }, [
+        h('button', {
+          cls: status === 'active' ? 'btn' : 'btn btn--primary',
+          on: { click: function () {
+            A.reconnectMetaMock(conn.id);
+            window.Shell.toast('Connessione rinnovata');
+          } },
+        }, [icon('link', 13), 'Riconnetti']),
+        h('button', {
+          cls: 'btn btn--danger',
+          on: { click: function () {
+            if (!confirm('Rimuovere questa connessione? I clienti collegati alle sue pagine smetteranno di pubblicare finché non ne colleghi un’altra.')) return;
+            A.removeConnection(conn.id);
+            window.Shell.toast('Connessione rimossa');
+          } },
+        }, [icon('trash', 13), 'Rimuovi']),
+      ]));
+
+      page.appendChild(card);
+    });
+
+    mount.appendChild(page);
+  }
+
+  function fmtDay(iso) {
+    var d = new Date(iso);
+    if (isNaN(d)) return '—';
+    return String(d.getDate()).padStart(2, '0') + '.' +
+           String(d.getMonth() + 1).padStart(2, '0') + '.' + d.getFullYear();
+  }
+
   /* ══ PREVIEW PICKER ═════════════════════════════════════════════════════
      Opens the client's portal in a NEW TAB, always. The portal is the
      client's surface and must never be framed inside the studio app — if it
@@ -942,6 +1204,7 @@ window.Sections = (function () {
     calendarMonth: renderCalendarMonth,
     ugcPicker: renderUgcPicker,
     ugcMonth: renderUgcMonth,
+    connections: renderConnections,
     preview: renderPreview,
     settings: renderSettings,
     clientTile: clientTile,

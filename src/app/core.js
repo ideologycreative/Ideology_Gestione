@@ -220,7 +220,7 @@ window.App = (function () {
     var section = parts[0] || 'home';
     var id = parts[1] || null;
 
-    if (['home', 'clients', 'content', 'calendar', 'ugc', 'preview', 'settings'].indexOf(section) < 0) {
+    if (['home', 'clients', 'content', 'calendar', 'ugc', 'connections', 'preview', 'settings'].indexOf(section) < 0) {
       section = 'home';
     }
 
@@ -801,6 +801,172 @@ window.App = (function () {
     setUgcSlots(clientId, month, ugcSlots(clientId, month).filter(function (s) { return s.id !== slotId; }));
   }
 
+  /* ── Meta connections ────────────────────────────────────────────────────
+     Two separate ideas, deliberately stored in two places:
+
+       CONNECTION  one Meta login and the pages it can reach. Studio-level,
+                   lives in the `connections` collection. Rare, infrastructural.
+       BINDING     which of those pages a given client account publishes to.
+                   Client-level, lives on account.meta.
+
+     Keeping them apart is what makes "these two clients must never get mixed"
+     enforceable: a binding names one page explicitly, and every publish path
+     re-resolves it against the live connection rather than trusting a name
+     someone typed. See docs/META-INTEGRATION-PLAN.md §4.
+
+     No tokens here — see the note in store.js. */
+
+  function connections() { return S.get('connections') || []; }
+
+  function connection(id) {
+    return connections().find(function (c) { return c.id === id; }) || null;
+  }
+
+  /* Long-lived Meta tokens last ~60 days and then publishing silently stops,
+     which for an agency tool is the worst possible failure. Surfaced as a
+     first-class state so it can be shown loudly rather than discovered when a
+     client asks why nothing went out. */
+  function connectionStatus(conn) {
+    if (!conn || !conn.expiresAt) return 'active';
+    var days = Math.floor((new Date(conn.expiresAt) - new Date()) / 86400000);
+    if (days <= 0) return 'expired';
+    if (days <= 7) return 'expiring';
+    return 'active';
+  }
+
+  function connectionDaysLeft(conn) {
+    if (!conn || !conn.expiresAt) return null;
+    return Math.floor((new Date(conn.expiresAt) - new Date()) / 86400000);
+  }
+
+  /* Every page across every connection, each tagged with the connection it
+     came from — what the binding picker lists. */
+  function metaPages() {
+    var out = [];
+    connections().forEach(function (conn) {
+      (conn.pages || []).forEach(function (p) {
+        out.push(Object.assign({ connectionId: conn.id, connectionName: conn.accountName }, p));
+      });
+    });
+    return out;
+  }
+
+  function metaPage(connectionId, pageId) {
+    var conn = connection(connectionId);
+    if (!conn) return null;
+    return (conn.pages || []).find(function (p) { return p.pageId === pageId; }) || null;
+  }
+
+  /* The page a client account is bound to, re-resolved live. Returns null when
+     the binding points at something we can no longer reach — a revoked
+     permission, a removed page, a disconnected account. The UI shows that as a
+     broken binding rather than pretending it will publish. */
+  function boundPage(account) {
+    if (!account || !account.meta || !account.meta.pageId) return null;
+    return metaPage(account.meta.connectionId, account.meta.pageId);
+  }
+
+  function isBound(account) { return !!(account && account.meta && account.meta.pageId); }
+
+  /* Which client account, if any, already publishes to this page. The guard
+     against two clients pointing at the same page. */
+  function pageBoundTo(connectionId, pageId, exceptAccountId) {
+    var hit = null;
+    clients().forEach(function (c) {
+      (c.accounts || []).forEach(function (a) {
+        if (hit || a.id === exceptAccountId) return;
+        if (a.meta && a.meta.connectionId === connectionId && a.meta.pageId === pageId) {
+          hit = { client: c, account: a };
+        }
+      });
+    });
+    return hit;
+  }
+
+  /* Refuses rather than silently rebinding: publishing to the wrong client's
+     page is not an error you can take back. */
+  function bindAccount(clientId, accountId, connectionId, pageId) {
+    var page = metaPage(connectionId, pageId);
+    if (!page) return { ok: false, reason: 'Pagina non trovata in questa connessione.' };
+
+    var taken = pageBoundTo(connectionId, pageId, accountId);
+    if (taken) {
+      return { ok: false,
+        reason: 'Questa pagina è già collegata a ' + taken.client.name + '. Una pagina può appartenere a un solo cliente.' };
+    }
+    updateAccount(clientId, accountId, {
+      meta: { connectionId: connectionId, pageId: pageId, igUserId: page.igUserId || null },
+    });
+    return { ok: true, page: page };
+  }
+
+  function unbindAccount(clientId, accountId) {
+    updateAccount(clientId, accountId, { meta: null });
+  }
+
+  /* Can this binding actually publish? Instagram needs a Business/Creator
+     account linked to the page — a personal one has no API access at all, and
+     finding that out at publish time is too late. */
+  function bindingIssue(account) {
+    if (!isBound(account)) return null;
+    var page = boundPage(account);
+    if (!page) return 'La pagina collegata non è più accessibile. Riconnetti l’account Meta o scegli un’altra pagina.';
+    var conn = connection(account.meta.connectionId);
+    if (connectionStatus(conn) === 'expired') return 'La connessione Meta è scaduta. Riconnetti per continuare a pubblicare.';
+    if (account.platform === 'Instagram') {
+      if (!page.igUserId) return 'Questa pagina non ha un account Instagram collegato.';
+      if (page.igAccountType === 'PERSONAL') {
+        return 'L’account Instagram è personale. Serve un account Business o Creator per pubblicare via API.';
+      }
+    }
+    return null;
+  }
+
+  /* Every binding on this client that is broken, for the roll-up warnings. */
+  function clientBindingIssues(c) {
+    var out = [];
+    (c.accounts || []).forEach(function (a) {
+      var issue = bindingIssue(a);
+      if (issue) out.push({ account: a, issue: issue });
+    });
+    return out;
+  }
+
+  function removeConnection(id) {
+    /* Bindings that pointed here are left in place on purpose. They will
+       resolve to null and show as broken, which is honest — reconnecting the
+       same Meta account restores them. Silently wiping them would lose the
+       mapping the studio built by hand. */
+    S.set('connections', connections().filter(function (c) { return c.id !== id; }));
+    emit('connections');
+  }
+
+  /* Stands in for the OAuth round trip until the backend exists — see
+     docs/META-INTEGRATION-PLAN.md §1. Real flow: redirect to Meta, exchange the
+     code for a token SERVER-SIDE, store it encrypted, return only the page list
+     to the browser. */
+  function connectMetaMock() {
+    if (!window.IdeologySeed || !window.IdeologySeed.mockConnection) return null;
+    var conn = window.IdeologySeed.mockConnection();
+    S.set('connections', connections().concat([conn]));
+    emit('connections');
+    return conn.id;
+  }
+
+  /* Re-authorising pushes the expiry back out; the pages come back from Meta
+     unchanged in the mock. */
+  function reconnectMetaMock(id) {
+    var next = connections().map(function (c) {
+      if (c.id !== id) return c;
+      return Object.assign({}, c, {
+        connectedAt: new Date().toISOString(),
+        expiresAt: new Date(Date.now() + 60 * 86400000).toISOString(),
+      });
+    });
+    S.set('connections', next);
+    emit('connections');
+  }
+
   /* ── Progress ────────────────────────────────────────────────────────── */
 
   function progress(list) {
@@ -1061,6 +1227,13 @@ window.App = (function () {
     progress: progress, clientProgress: clientProgress, studioStats: studioStats,
     clientMonthDays: clientMonthDays,
     pillars: pillars, formats: formats, statusOf: statusOf,
+    connections: connections, connection: connection,
+    connectionStatus: connectionStatus, connectionDaysLeft: connectionDaysLeft,
+    metaPages: metaPages, metaPage: metaPage, boundPage: boundPage, isBound: isBound,
+    pageBoundTo: pageBoundTo, bindAccount: bindAccount, unbindAccount: unbindAccount,
+    bindingIssue: bindingIssue, clientBindingIssues: clientBindingIssues,
+    removeConnection: removeConnection,
+    connectMetaMock: connectMetaMock, reconnectMetaMock: reconnectMetaMock,
     UGC_STATI: UGC_STATI, ugcStatusOf: ugcStatusOf,
     ugcSlots: ugcSlots, setUgcSlots: setUgcSlots,
     addUgcSlot: addUgcSlot, updateUgcSlot: updateUgcSlot, removeUgcSlot: removeUgcSlot,

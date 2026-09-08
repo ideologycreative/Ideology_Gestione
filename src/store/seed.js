@@ -424,7 +424,26 @@ window.IdeologySeed = (function () {
       }
     });
 
-    store.set('clients',  structuredClone(CLIENTS));
+    /* One connected Meta account, with the demo clients' pages already bound —
+       and deliberately not a clean happy path, because the states that matter
+       are the awkward ones: a page nobody has claimed yet, an Instagram that is
+       a personal account (unpublishable), and a page with no IG linked at all. */
+    const seededClients = structuredClone(CLIENTS);
+    const conn = mockConnection();
+    const bind = (clientId, accountId, pageId) => {
+      const c = seededClients.find(x => x.id === clientId);
+      const a = c && (c.accounts || []).find(x => x.id === accountId);
+      const p = conn.pages.find(x => x.pageId === pageId);
+      if (a && p) a.meta = { connectionId: conn.id, pageId: p.pageId, igUserId: p.igUserId || null };
+    };
+    bind('c_marefuori',  'a_mf_ig', 'pg_marefuori');
+    bind('c_marefuori',  'a_mf_fb', 'pg_marefuori');
+    bind('c_terrarossa', 'a_tr_ig', 'pg_terrarossa');
+    bind('c_nodo',       'a_nd_ig', 'pg_nodo');
+    // c_kalat and c_vulcano left unbound on purpose — the "da collegare" state.
+
+    store.set('connections', [conn]);
+    store.set('clients',  seededClients);
     store.set('feeds',    feeds);
     store.set('stories',  stories);
     store.set('pedPlans', ped);
@@ -441,5 +460,42 @@ window.IdeologySeed = (function () {
       Object.values(feeds).reduce((n, a) => n + a.length, 0), 'post.');
   }
 
-  return { run, CLIENTS, MONTHS };
+  /* ── Mock Meta connection ────────────────────────────────────────────────
+     Stands in for the OAuth round trip until the backend lands. The shape is
+     what `GET /me/accounts` gives you, trimmed to what the UI needs: pages the
+     connected account manages, each with its linked Instagram (or not).
+
+     Contains no token, and the real one never reaches the browser either —
+     see docs/META-INTEGRATION-PLAN.md §1. */
+  function mockConnection() {
+    return {
+      id: id('mc_'),
+      provider: 'meta',
+      accountName: 'Akash Ideology',
+      businessName: 'Ideology Creative Studio',
+      connectedAt: new Date().toISOString(),
+      // Long-lived Meta tokens run ~60 days.
+      expiresAt: new Date(Date.now() + 60 * 86400000).toISOString(),
+      pages: [
+        { pageId: 'pg_marefuori', name: 'Marefuori Ragusa', category: 'Ristorante di pesce',
+          igUserId: 'ig_marefuori', igUsername: 'marefuori.ragusa', igAccountType: 'BUSINESS' },
+        { pageId: 'pg_terrarossa', name: 'Terrarossa', category: 'Azienda vinicola',
+          igUserId: 'ig_terrarossa', igUsername: 'terrarossa.wine', igAccountType: 'BUSINESS' },
+        { pageId: 'pg_vulcano', name: 'Vulcano Lab', category: 'Cosmetica',
+          igUserId: 'ig_vulcano', igUsername: 'vulcanolab', igAccountType: 'CREATOR' },
+        { pageId: 'pg_nodo', name: 'Nodo Studio', category: 'Studio di architettura',
+          igUserId: 'ig_nodo', igUsername: 'nodo.studio', igAccountType: 'BUSINESS' },
+        /* An Instagram that cannot be published to via API at all. The tool has
+           to say so at binding time, not at publish time. */
+        { pageId: 'pg_kalat', name: 'Kalát', category: 'Panificio',
+          igUserId: 'ig_kalat', igUsername: 'kalat.bakery', igAccountType: 'PERSONAL' },
+        /* A page with no Instagram linked — fine for Facebook, not bindable
+           to an Instagram account. */
+        { pageId: 'pg_ideology', name: 'Ideology Creative Studio', category: 'Agenzia pubblicitaria',
+          igUserId: null, igUsername: null, igAccountType: null },
+      ],
+    };
+  }
+
+  return { run, mockConnection, CLIENTS, MONTHS };
 })();

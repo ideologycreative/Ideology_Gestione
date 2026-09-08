@@ -43,6 +43,7 @@ window.Shell = (function () {
     { id: 'ugc',      path: '/ugc',      label: 'UGC',          ic: 'clapper' },
     { id: 'calendar', path: '/calendar', label: 'Calendario',   ic: 'calendar' },
     { id: 'preview',  path: '/preview',  label: 'Anteprima',    ic: 'eye'   },
+    { id: 'connections', path: '/connections', label: 'Connessioni', ic: 'link' },
     { id: 'settings', path: '/settings', label: 'Impostazioni', ic: 'cog'   },
   ];
 
@@ -411,6 +412,7 @@ window.Shell = (function () {
         : window.Sections.ugcPicker(mount);
     }
     if (s === 'preview')  return window.Sections.preview(mount);
+    if (s === 'connections') return window.Sections.connections(mount);
     if (s === 'settings') return window.Sections.settings(mount);
 
     if (s === 'content') {

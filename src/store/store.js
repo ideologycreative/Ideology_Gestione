@@ -45,6 +45,16 @@ window.IdeologyStore = (function () {
     pillars:   {},   // { "<clientId>": [ { id, name, color }, ... ] }
     formats:   {},   // { "<clientId>": [ { id, name, ratio }, ... ] }
     settings:  {},   // { theme, lastClientId, lastTab, ... }
+    /* Meta (Facebook/Instagram) account connections. A connection is one Meta
+       login and the pages it can reach; which page a given client publishes to
+       is stored on that client's account (account.meta), not here — see
+       docs/META-INTEGRATION-PLAN.md §4.
+
+       NOTE: no access tokens live here, and none ever should. This collection
+       is browser-side and readable by any script on the origin; a page token is
+       permission to post as the client. Tokens stay server-side once the
+       backend lands. This holds only what the UI needs to display. */
+    connections: [], // [{ id, provider, accountName, pages: [...], ... }]
   };
 
   const listeners = new Set();

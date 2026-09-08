@@ -73,7 +73,7 @@ try {
     check('brand token',        boot.brand.toUpperCase() === '#F2C700', boot.brand);
     check('page ground',        boot.bg === 'rgb(16, 16, 16)', boot.bg);
     check('mono face loaded',   boot.mono === true);
-    check('7 sections in menu', boot.menu.length === 7, boot.menu.join(' / '));
+    check('8 sections in menu', boot.menu.length === 8, boot.menu.join(' / '));
     check('boots on home',      boot.section === 'home' && boot.hasHero);
     check('home shows stats',   boot.stats === 5, boot.stats + ' stats');
 
@@ -800,6 +800,74 @@ try {
         JSON.stringify(ugc.slot));
       check('status change commits', !!ugc.slot && ugc.slot.ugcStato === 'approvato');
       check('removing a brief empties the list', ugc.afterDelete === 0);
+    }
+
+    /* ── Meta connections & page binding ────────────────────────────────────
+       The guards are the whole point of this feature: one Meta login exposes
+       every client's page at once, so binding the wrong one is a mistake you
+       cannot take back after it publishes. */
+    const meta = await page.evaluate(async () => {
+      location.hash = '#/connections';
+      await new Promise(r => setTimeout(r, 420));
+
+      const conn = App.connections()[0];
+      if (!conn) return { skipped: true, why: 'no seeded connection' };
+
+      const rendered = {
+        cards: document.querySelectorAll('.conn-card').length,
+        pageRows: document.querySelectorAll('.conn-page').length,
+        unassigned: [...document.querySelectorAll('.conn-page-to.is-free')].length,
+      };
+
+      // A page already bound to another client must be refused, not rebound.
+      const kalat = App.clients().find(c => c.id === 'c_kalat');
+      const dbl = App.bindAccount(kalat.id, kalat.accounts[0].id, conn.id, 'pg_terrarossa');
+
+      // A personal IG can never publish — it has to be called out.
+      App.bindAccount(kalat.id, kalat.accounts[0].id, conn.id, 'pg_kalat');
+      const personalIssue = App.bindingIssue(
+        App.clients().find(c => c.id === 'c_kalat').accounts[0]);
+
+      // The picker must disable everything unpickable, with the reason in the label.
+      location.hash = '#/clients/c_kalat';
+      await new Promise(r => setTimeout(r, 420));
+      const opts = [...document.querySelectorAll('.bind-picker option')]
+        .map(o => ({ label: o.textContent, disabled: o.disabled }));
+
+      // Losing the connection must break bindings loudly, not silently.
+      App.removeConnection(conn.id);
+      await new Promise(r => setTimeout(r, 200));
+      const mf = App.clients().find(c => c.id === 'c_marefuori');
+      const brokenCount = App.clientBindingIssues(mf).length;
+      location.hash = '#/connections';
+      await new Promise(r => setTimeout(r, 420));
+      const warnShown = !!document.querySelector('.conn-warn');
+
+      App.connectMetaMock();   // restore, so later tests see a normal state
+      await new Promise(r => setTimeout(r, 200));
+
+      return { skipped: false, rendered, dbl, personalIssue, opts, brokenCount, warnShown };
+    });
+
+    if (meta.skipped) {
+      check('Meta connections', false, meta.why);
+    } else {
+      check('connections page lists the account and its pages',
+        meta.rendered.cards === 1 && meta.rendered.pageRows > 1,
+        meta.rendered.cards + ' card, ' + meta.rendered.pageRows + ' pages');
+      check('unassigned pages are marked as such', meta.rendered.unassigned > 0,
+        meta.rendered.unassigned + ' free');
+      check('a page already bound to another client is refused',
+        meta.dbl.ok === false && /già collegata/.test(meta.dbl.reason || ''), meta.dbl.reason);
+      check('a personal Instagram is flagged as unpublishable',
+        /personale/i.test(meta.personalIssue || ''), meta.personalIssue);
+      check('the picker disables pages taken by another client',
+        meta.opts.some(o => o.disabled && /già su/.test(o.label)));
+      check('the picker disables pages with no usable Instagram',
+        meta.opts.some(o => o.disabled && /(personale|nessun IG)/.test(o.label)));
+      check('losing the connection breaks its bindings', meta.brokenCount === 2,
+        meta.brokenCount + ' broken');
+      check('broken bindings are surfaced on the connections page', meta.warnShown === true);
     }
 
     await page.close();

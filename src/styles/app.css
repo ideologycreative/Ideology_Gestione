@@ -530,6 +530,136 @@ kbd {
   border: 1px solid var(--rule); padding: 3px 6px;
 }
 
+/* ═══ CONNESSIONI ═════════════════════════════════════════════════════════
+   Meta account status. Checked rarely, which is why the states that matter
+   (expiring token, broken binding) are the loudest things on the page. */
+
+.conn-note {
+  display: flex; flex-direction: column; gap: 4px;
+  border: 1px solid var(--rule); border-left: 3px solid var(--info-text);
+  background: var(--info-bg);
+  padding: 10px 12px; margin-bottom: 18px;
+}
+.conn-note b {
+  font-family: var(--mono); font-size: 9px; font-weight: 700;
+  letter-spacing: var(--track); text-transform: uppercase; color: var(--info-text);
+}
+.conn-note span { font-size: 11.5px; line-height: 1.55; color: var(--text-2); }
+
+.conn-warn {
+  border: 1px solid var(--danger-border); border-left: 3px solid var(--danger-text);
+  background: var(--danger-bg);
+  padding: 10px 12px; margin-bottom: 18px;
+}
+.conn-warn > b {
+  display: block;
+  font-family: var(--mono); font-size: 9px; font-weight: 700;
+  letter-spacing: var(--track); text-transform: uppercase;
+  color: var(--danger-text); margin-bottom: 6px;
+}
+.conn-warn-row {
+  appearance: none; border: 0; background: none; width: 100%;
+  display: flex; gap: 10px; align-items: baseline;
+  padding: 4px 0; cursor: pointer; text-align: left;
+}
+.conn-warn-row:hover .conn-warn-client { color: var(--text); }
+.conn-warn-client {
+  font-family: var(--mono); font-size: 9px; letter-spacing: .06em;
+  text-transform: uppercase; color: var(--danger-text); flex-shrink: 0;
+}
+.conn-warn-msg { font-size: 11.5px; color: var(--text-2); }
+
+.conn-card { margin-bottom: 16px; }
+.conn-hd { display: flex; align-items: center; gap: 11px; }
+.conn-mark {
+  width: 30px; height: 30px; flex-shrink: 0;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: #1877F2; color: #fff;               /* Meta's own blue, not ours */
+  font-family: var(--font-display); font-size: 17px; font-weight: 700;
+}
+.conn-id { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.conn-name { font-size: 14px; color: var(--text); }
+.conn-biz {
+  font-family: var(--mono); font-size: 9px; letter-spacing: .06em;
+  text-transform: uppercase; color: var(--text-3);
+}
+.conn-pill {
+  flex-shrink: 0;
+  font-family: var(--mono); font-size: 9px; font-weight: 700;
+  letter-spacing: var(--track); text-transform: uppercase;
+  padding: 4px 8px; border: 1px solid currentColor;
+}
+.conn-pill[data-s="active"]   { color: var(--brand); }
+.conn-pill[data-s="expiring"] { color: var(--warning-text); background: var(--warning-bg); }
+.conn-pill[data-s="expired"]  { color: var(--danger-text);  background: var(--danger-bg); }
+
+.conn-expired {
+  border: 1px solid var(--danger-border); background: var(--danger-bg);
+  color: var(--danger-text); padding: 8px 10px; font-size: 11.5px;
+}
+
+.conn-pages { display: flex; flex-direction: column; margin-top: 6px; }
+.conn-page {
+  display: flex; align-items: center; gap: 10px;
+  padding: 9px 0; border-top: 1px solid var(--rule);
+}
+.conn-page-id { display: flex; flex-direction: column; gap: 1px; flex: 1; min-width: 0; }
+.conn-page-name { font-size: 12.5px; color: var(--text); }
+.conn-page-cat { font-size: 10px; color: var(--text-3); }
+.conn-page-tags { display: flex; gap: 4px; flex-shrink: 0; }
+.conn-tag {
+  font-family: var(--mono); font-size: 8px; font-weight: 700;
+  letter-spacing: .06em; padding: 2px 5px;
+  border: 1px solid var(--rule-2); color: var(--text-3);
+}
+.conn-tag--ig  { border-color: var(--coral); color: var(--coral); }
+/* An Instagram that cannot be published to at all. --danger-text and --coral
+   are both pink at this size — indistinguishable in a 5px-tall tag — so this
+   state is carried by the strike-through and dashed border, not by hue. */
+.conn-tag--bad {
+  border-style: dashed; border-color: var(--danger-text);
+  color: var(--danger-text); text-decoration: line-through;
+}
+.conn-page-to {
+  flex-shrink: 0; width: 140px; text-align: right;
+  font-family: var(--mono); font-size: 9.5px; letter-spacing: .04em;
+  color: var(--text-2);
+}
+.conn-page-to.is-free { color: var(--text-3); font-style: italic; }
+
+/* ── Per-client page binding ──────────────────────────────────────────────
+   Sits under its account row. The bound page's REAL name, so a wrong page is
+   visible before anything publishes to it. */
+.bind-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 10px; margin: 0 0 4px 0;
+  border: 1px solid var(--rule); border-left: 2px solid var(--rule-2);
+  background: var(--surface-lt);
+}
+.bind-row.is-ok  { border-left-color: var(--brand); }
+.bind-row.is-bad { border-left-color: var(--danger-text); background: var(--danger-bg); }
+.bind-icon {
+  width: 18px; height: 18px; flex-shrink: 0;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-family: var(--mono); font-size: 10px; font-weight: 700;
+  border: 1px solid currentColor; color: var(--brand);
+}
+.bind-row.is-bad .bind-icon { color: var(--danger-text); }
+.bind-icon--none { color: var(--rule-2); }
+.bind-id { display: flex; flex-direction: column; gap: 1px; flex: 1; min-width: 0; }
+.bind-page { font-size: 12px; color: var(--text); }
+.bind-page--none { color: var(--text-3); }
+.bind-sub { font-size: 10.5px; line-height: 1.4; color: var(--text-3); }
+.bind-row.is-bad .bind-sub { color: var(--danger-text); }
+/* Scoped to .bind-row on purpose: `.input { width: 100% }` is the same
+   specificity and is declared later in this file, so a bare .bind-picker
+   rule loses and the select overflows its row. */
+.bind-row .bind-picker { width: 260px; flex-shrink: 0; }
+@media (max-width: 860px) {
+  .bind-row { flex-wrap: wrap; }
+  .bind-row .bind-picker { width: 100%; }
+}
+
 /* ═══ UGC ═════════════════════════════════════════════════════════════════
    One row per brief — same anatomy as an account row, more columns. */
 .ugc-list { margin-top: 18px; max-width: 1040px; }
