@@ -208,6 +208,13 @@ body.has-inspector .app { grid-template-columns: var(--rail-w) 1fr var(--insp-w)
   background: var(--surface-lt);
   text-shadow: var(--glow);
 }
+/* Darkening the yellow twice still wasn't enough to read as clearly as the
+   plain black/white text next to it — because it never can be: any yellow
+   dark enough to hit real contrast on white stops looking gold and starts
+   looking brown. Same call the design already makes for the stat numbers
+   below: the colour carries on the BORDER (still there, still gold), the
+   TEXT itself just goes back to full contrast. */
+[data-theme="light"] .menu-item.is-on { color: var(--text); }
 
 .rail-ft { border-top: 1px solid var(--rule); padding: 8px; display: flex; flex-direction: column; gap: 2px; }
 .rail-link {
@@ -317,6 +324,15 @@ kbd {
   line-height: 1; color: var(--text);
 }
 .stat--brand .stat-n { color: var(--text-accent); text-shadow: var(--glow); }
+/* Same call as .menu-item.is-on: the underline below carries the colour,
+   the number itself reads as plain high-contrast text. */
+[data-theme="light"] .stat--brand .stat-n,
+[data-theme="light"] .stat--spon .stat-n { color: var(--text); }
+.stat--brand { position: relative; }
+.stat--brand::after {
+  content: ""; position: absolute; inset: auto 0 0 0; height: 2px;
+  background: var(--text-accent); box-shadow: var(--glow);
+}
 .stat-l {
   font-family: var(--mono); font-size: 8px;
   letter-spacing: var(--track); text-transform: uppercase;
