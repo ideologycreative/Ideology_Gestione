@@ -1017,13 +1017,23 @@ window.App = (function () {
      Bozza is excluded on purpose: a day that only holds an untouched draft
      is not "covered" in the sense this view exists to answer, and counting
      it made early-stage work look like planned coverage before anyone had
-     actually decided to send it anywhere. */
+     actually decided to send it anywhere.
+
+     One mark per distinct piece of content, not per channel it goes out on —
+     the same photo or reel pushed to Instagram and Facebook is one thing on
+     the plan, not two, so channel copies sharing a groupId collapse into a
+     single entry here. The collapsed entry carries every platform it reaches
+     (`platforms`, plural) rather than picking one at random, so the view
+     still says where it's going — just without a duplicate-looking dot for
+     what is, editorially, one post. */
 
   function clientMonthDays(clientId, monthStr) {
     var c = client(clientId);
     var mo = monthStr || state.month || thisMonth();
     var byDay = {};
     if (!c) return byDay;
+
+    var entryByGroup = {}; // "<day>|<groupId>" -> the byDay[] entry representing it
 
     (c.accounts || []).forEach(function (a) {
       [['feed', S.getFeed(a.id, mo)], ['story', S.getStories(a.id, mo)]]
@@ -1033,14 +1043,24 @@ window.App = (function () {
             if (stato === 'bozza') return;
             var d = dayOf(it.date);
             if (!d) return;
-            (byDay[d] = byDay[d] || []).push({
+
+            var key = it.groupId ? (d + '|' + it.groupId) : null;
+            var existing = key && entryByGroup[key];
+            if (existing) {
+              if (existing.platforms.indexOf(a.platform) < 0) existing.platforms.push(a.platform);
+              return;
+            }
+
+            var entry = {
               id: it.id,
               kind: pair[0],
               type: it.type || 'photo',
-              platform: a.platform,
+              platforms: [a.platform],
               stato: stato,
               sponsored: !!it.sponsored,
-            });
+            };
+            (byDay[d] = byDay[d] || []).push(entry);
+            if (key) entryByGroup[key] = entry;
           });
         });
     });

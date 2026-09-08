@@ -736,7 +736,7 @@ window.Sections = (function () {
             title: list.length
               ? day + ': ' + list.map(function (x) {
                   return (x.sponsored ? 'Sponsorizzato' : x.kind === 'story' ? 'Storia' : A.typeOf(x.type).label) +
-                    ' (' + x.platform + ')';
+                    ' (' + x.platforms.join(', ') + ')';
                 }).join(', ')
               : day + ': nessun contenuto',
             'aria-label': day + ', ' + list.length + ' contenuti',
@@ -757,15 +757,11 @@ window.Sections = (function () {
           });
           var dots = h('span', { cls: 'cov-dots' });
           ordered.slice(0, 8).forEach(function (x) {
-            /* Names the platform, not just the type — a post shared across
-               two channels (sponsorship syncs across the group, same as
-               everything else in SHARED_FIELDS) is one piece of content but
-               two dots here on purpose, since this view counts coverage per
-               channel. Without the platform in the label there was no way to
-               tell "two sponsored posts" from "one sponsored post on two
-               channels" short of opening the inspector on each. */
+            /* Names every platform this reaches, not just one — a post shared
+               to two channels is one dot (clientMonthDays already collapsed
+               it), so the label is what says it isn't Instagram-only. */
             var label = (x.sponsored ? 'Sponsorizzato' : x.kind === 'story' ? 'Storia' : A.typeOf(x.type).label) +
-              ' · ' + x.platform;
+              ' · ' + x.platforms.join(', ');
             dots.appendChild(h('i', {
               cls: 'dot' + (x.sponsored ? ' dot--spon' : ''),
               style: 'background:' + A.entryColor(x),

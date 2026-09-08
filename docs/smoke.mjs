@@ -268,11 +268,11 @@ try {
     check('sponsored dot is larger, not just coloured',
       cov.sponSize > cov.plainSize, cov.plainSize + 'px -> ' + cov.sponSize + 'px');
 
-    /* Bozza does not count as coverage, and a channel-shared post correctly
-       shows one dot per channel — verified together because the second was
-       reported as "looks like a duplicate bug" when it is really the first
-       (sponsorship syncs across a shared post's channels) made invisible by
-       dot tooltips that didn't say which platform each dot was. */
+    /* Bozza does not count as coverage, and a post shared to two channels is
+       ONE dot, not two — a duplicate-looking pair of dots for what is
+       editorially one piece of content read as a bug (it was reported as
+       one), even once the dots said which platform each was on. The merged
+       dot names every platform it reaches instead. */
     const dup = await page.evaluate(async () => {
       const c = App.clients().find(x => x.id === 'c_marefuori');
       const month = App.thisMonth();
@@ -281,10 +281,15 @@ try {
       if (!fb) return { skipped: true, why: 'seed client has no Facebook account' };
 
       const feed = window.IdeologyStore.getFeed(ig, month).slice();
-      feed[0] = Object.assign({}, feed[0], { date: '2026-09-03', sponsored: true, apprStato: 'approvato' });
-      feed[1] = Object.assign({}, feed[1], { date: '2026-09-03', sponsored: false, apprStato: 'bozza' });
+      const gid = 'g_smoke_shared';
+      // Post A: shared to IG + FB (matching groupId, as App.setTargets would
+      // actually produce). Post B: Instagram-only, for contrast. Post C: a
+      // draft, must not appear at all.
+      feed[0] = Object.assign({}, feed[0], { date: '2026-09-03', sponsored: true, apprStato: 'approvato', groupId: gid });
+      feed[1] = Object.assign({}, feed[1], { date: '2026-09-03', sponsored: true, apprStato: 'approvato', groupId: 'g_smoke_solo' });
+      feed[2] = Object.assign({}, feed[2], { date: '2026-09-03', sponsored: false, apprStato: 'bozza' });
       window.IdeologyStore.setFeed(ig, month, feed);
-      const fbCopy = Object.assign({}, feed[0], { id: 'i_smoke_fb_copy' });
+      const fbCopy = Object.assign({}, feed[0], { id: 'i_smoke_fb_copy', groupId: gid });
       window.IdeologyStore.setFeed(fb, month, [fbCopy].concat(window.IdeologyStore.getFeed(fb, month)));
 
       const day3 = App.clientMonthDays(c.id, month)[3] || [];
@@ -306,17 +311,19 @@ try {
         skipped: false,
         bozzaExcluded: !day3.some(x => x.stato === 'bozza'),
         sponsoredOnDay3: day3.filter(x => x.sponsored).length,
-        namesEachPlatform: dotTitles.filter(t => /Instagram|Facebook/.test(t || '')).length,
+        dotCount: dotTitles.length,
+        sharedDotTitle: dotTitles.find(t => /Facebook/.test(t || '')),
       };
     });
     if (dup.skipped) {
       check('bozza / multi-channel coverage counting', false, dup.why);
     } else {
       check('bozza items are excluded from the coverage calendar', dup.bozzaExcluded === true);
-      check('a post shared to two channels shows two dots, correctly',
-        dup.sponsoredOnDay3 === 2, dup.sponsoredOnDay3 + ' sponsored dots');
-      check('each dot names its platform, so that is not mistaken for a duplicate bug',
-        dup.namesEachPlatform === 2, dup.namesEachPlatform + ' labelled');
+      check('a post shared to two channels collapses to one dot, not two',
+        dup.sponsoredOnDay3 === 2 && dup.dotCount === 2, dup.sponsoredOnDay3 + ' entries, ' + dup.dotCount + ' dots');
+      check('the merged dot names every platform it reaches',
+        !!dup.sharedDotTitle && /Instagram/.test(dup.sharedDotTitle) && /Facebook/.test(dup.sharedDotTitle),
+        dup.sharedDotTitle);
     }
 
     /* Photo, carousel, reel, story and sponsored each need their own colour —
