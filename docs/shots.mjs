@@ -300,5 +300,17 @@ await page.evaluate(async () => {
 await new Promise(r => setTimeout(r, 400));
 await shot('34-inspector-note-top');
 
+// UGC -- the studio side of a section that used to be portal-only.
+await page.evaluate(() => { location.hash = '#/ugc'; });
+await new Promise(r => setTimeout(r, 300));
+await shot('35-ugc-picker');
+
+await page.evaluate(() => {
+  const c = App.clients().find(x => x.id === 'c_marefuori');
+  location.hash = '#/ugc/' + c.id;
+});
+await new Promise(r => setTimeout(r, 400));
+await shot('36-ugc-workspace');
+
 await browser.close().catch(() => {});
 console.log('\nsaved to docs/shots/');

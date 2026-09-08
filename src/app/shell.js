@@ -40,6 +40,7 @@ window.Shell = (function () {
     { id: 'home',     path: '/',         label: 'Home',         ic: 'home'  },
     { id: 'clients',  path: '/clients',  label: 'Clienti',      ic: 'users' },
     { id: 'content',  path: '/content',  label: 'Contenuti',    ic: 'layers'},
+    { id: 'ugc',      path: '/ugc',      label: 'UGC',          ic: 'clapper' },
     { id: 'calendar', path: '/calendar', label: 'Calendario',   ic: 'calendar' },
     { id: 'preview',  path: '/preview',  label: 'Anteprima',    ic: 'eye'   },
     { id: 'settings', path: '/settings', label: 'Impostazioni', ic: 'cog'   },
@@ -262,6 +263,8 @@ window.Shell = (function () {
         run: function () { A.go('/clients/' + c.id); } });
       out.push({ group: 'Calendario', label: c.name,
         run: function () { A.go('/calendar/' + c.id); } });
+      out.push({ group: 'UGC', label: c.name,
+        run: function () { A.go('/ugc/' + c.id); } });
       out.push({ group: 'Portale', label: c.name,
         run: function () { window.open(A.portalUrl(c), '_blank', 'noopener'); } });
     });
@@ -401,6 +404,11 @@ window.Shell = (function () {
       return A.state.routeId && A.client()
         ? window.Sections.calendarMonth(mount, A.state.routeId)
         : window.Sections.calendarPicker(mount);
+    }
+    if (s === 'ugc') {
+      return A.state.routeId && A.client()
+        ? window.Sections.ugcMonth(mount, A.state.routeId)
+        : window.Sections.ugcPicker(mount);
     }
     if (s === 'preview')  return window.Sections.preview(mount);
     if (s === 'settings') return window.Sections.settings(mount);

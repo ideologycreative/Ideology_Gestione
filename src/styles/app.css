@@ -507,6 +507,17 @@ kbd {
   border: 1px solid var(--rule); padding: 3px 6px;
 }
 
+/* ═══ UGC ═════════════════════════════════════════════════════════════════
+   One row per brief — same anatomy as an account row, more columns. */
+.ugc-list { margin-top: 18px; max-width: 1040px; }
+.ugc-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 11px 0; border-top: 1px solid var(--rule);
+}
+.ugc-main { display: grid; grid-template-columns: 140px 130px 1fr 150px; gap: 8px; flex: 1; min-width: 0; }
+.ugc-side { display: flex; align-items: center; flex-shrink: 0; }
+@media (max-width: 860px) { .ugc-main { grid-template-columns: 1fr 1fr; } }
+
 .url-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .url {
   flex: 1; min-width: 190px;

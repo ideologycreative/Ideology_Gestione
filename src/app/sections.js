@@ -23,10 +23,15 @@ window.Sections = (function () {
      this app), which would otherwise blow the input away after every single
      keystroke. Debouncing means the rebuild lands on a pause, not mid-word —
      the same trade the inspector already makes for its own text fields. */
-  var editTimer = null;
-  function debounced(fn) {
-    clearTimeout(editTimer);
-    editTimer = setTimeout(fn, 260);
+  /* Keyed per field, not one shared timer — a single timer meant editing two
+     different fields within 260ms of each other (tabbing from Creator to
+     Brief while filling in a UGC row, say) silently dropped whichever one
+     committed first: the second call's clearTimeout cancelled it before its
+     callback ever ran. */
+  var editTimers = {};
+  function debounced(key, fn) {
+    clearTimeout(editTimers[key]);
+    editTimers[key] = setTimeout(fn, 260);
   }
 
   /* ── Shared: a client tile ───────────────────────────────────────────────
@@ -216,7 +221,7 @@ window.Sections = (function () {
       cls: 'input', attrs: { type: 'text', value: c.name || '', 'aria-label': 'Nome cliente' },
       on: { input: function () {
         var v = name.value;
-        debounced(function () { A.updateClient(c.id, { name: v }); });
+        debounced('client-name-' + c.id, function () { A.updateClient(c.id, { name: v }); });
       } },
     });
     idCard.appendChild(fld('Nome azienda', name));
@@ -248,7 +253,7 @@ window.Sections = (function () {
         if (!/^#[0-9a-f]{6}$/i.test(v)) { hexInput.classList.add('is-invalid'); return; }
         hexInput.classList.remove('is-invalid');
         picker.value = v;
-        debounced(function () { A.updateClient(c.id, { color: v }); });
+        debounced('client-color-' + c.id, function () { A.updateClient(c.id, { color: v }); });
       } },
     });
     idCard.appendChild(fld('Colore', h('div', { cls: 'swatches' },
@@ -328,7 +333,7 @@ window.Sections = (function () {
         placeholder: 'Tono di voce, vincoli, referente…' },
       on: { input: function () {
         var v = note.value;
-        debounced(function () { A.updateClient(c.id, { note: v }); });
+        debounced('client-note-' + c.id, function () { A.updateClient(c.id, { note: v }); });
       } },
     });
     note.value = c.note || '';
@@ -363,7 +368,7 @@ window.Sections = (function () {
         cls: 'input', attrs: { type: 'text', value: cat.name || '', 'aria-label': 'Nome categoria' },
         on: { input: function () {
           var v = nm.value;
-          debounced(function () { A.updatePillar(c.id, cat.id, { name: v }); });
+          debounced('cat-name-' + cat.id, function () { A.updatePillar(c.id, cat.id, { name: v }); });
         } },
       });
 
@@ -417,7 +422,7 @@ window.Sections = (function () {
                                'aria-label': 'Nome account' },
         on: { input: function () {
           var v = nm.value;
-          debounced(function () { A.updateAccount(c.id, a.id, { name: v }); });
+          debounced('acc-name-' + a.id, function () { A.updateAccount(c.id, a.id, { name: v }); });
         } },
       });
 
@@ -426,7 +431,7 @@ window.Sections = (function () {
                                'aria-label': 'Username' },
         on: { input: function () {
           var v = hd.value;
-          debounced(function () { A.updateAccount(c.id, a.id, { handle: v }); });
+          debounced('acc-handle-' + a.id, function () { A.updateAccount(c.id, a.id, { handle: v }); });
         } },
       });
 
@@ -684,6 +689,125 @@ window.Sections = (function () {
     mount.appendChild(page);
   }
 
+  /* ══ UGC ════════════════════════════════════════════════════════════════
+     Briefs for creators, not posts the studio makes itself — client + month,
+     same scope as Calendario and for the same reason: a brief goes out
+     before anyone knows which account the result lands on. This was
+     previously portal-only (the client could see a UGC tab with data only
+     seed.js ever wrote); this is the studio side that was missing. */
+
+  function renderUgcPicker(mount) {
+    var page = h('div', { cls: 'page' });
+    page.appendChild(pageHead('UGC', 'Scegli un cliente per gestire i brief creator'));
+
+    var list = A.clients();
+    if (!list.length) {
+      page.appendChild(h('div', { cls: 'empty' }, [h('p', { text: 'Nessun cliente ancora.' })]));
+    } else {
+      page.appendChild(h('div', { cls: 'tiles' }, list.map(function (c) {
+        return clientTile(c, { onClick: function () { A.go('/ugc/' + c.id); } });
+      })));
+    }
+    mount.appendChild(page);
+  }
+
+  function renderUgcMonth(mount, id) {
+    var c = A.client(id);
+    if (!c) { A.go('/ugc'); return; }
+
+    var month = A.state.month || A.thisMonth();
+    var slots = A.ugcSlots(c.id, month);
+
+    var page = h('div', { cls: 'page' });
+
+    page.appendChild(h('button', {
+      cls: 'back', on: { click: function () { A.go('/ugc'); } },
+    }, [icon('left', 12), 'Tutti i clienti']));
+
+    page.appendChild(pageHead(c.name, slots.length + ' brief in ' + month,
+      h('button', {
+        cls: 'btn btn--primary',
+        on: { click: function () { A.addUgcSlot(c.id, month, {}); } },
+      }, [icon('plus', 13), 'Nuovo brief'])
+    ));
+
+    page.appendChild(h('div', { cls: 'cov-bar' }, [
+      h('div', { cls: 'stepper' }, [
+        h('button', {
+          cls: 'iconbtn', attrs: { 'aria-label': 'Mese precedente' },
+          on: { click: function () { A.set({ month: A.shiftMonth(-1) }, 'month'); } },
+        }, [icon('left', 14)]),
+        window.MonthPicker.create({
+          value: month,
+          hasContent: function (lbl) { return A.ugcSlots(c.id, lbl).length > 0; },
+          onPick: function (val) { A.set({ month: val }, 'month'); },
+        }),
+        h('button', {
+          cls: 'iconbtn', attrs: { 'aria-label': 'Mese successivo' },
+          on: { click: function () { A.set({ month: A.shiftMonth(1) }, 'month'); } },
+        }, [icon('right', 14)]),
+      ]),
+    ]));
+
+    var listWrap = h('div', { cls: 'ugc-list' });
+
+    if (!slots.length) {
+      listWrap.appendChild(h('p', { cls: 'panel-empty', text: 'Nessun brief per ' + month + '.' }));
+    }
+
+    slots.forEach(function (slot) {
+      var date = h('input', {
+        cls: 'input', attrs: { type: 'date', 'aria-label': 'Data' },
+        on: { change: function () { A.updateUgcSlot(c.id, month, slot.id, { date: date.value }); } },
+      });
+      date.value = slot.date || '';
+
+      var creator = h('input', {
+        cls: 'input', attrs: { type: 'text', placeholder: '@creator', value: slot.creator || '',
+                               'aria-label': 'Creator' },
+        on: { input: function () {
+          var v = creator.value;
+          debounced('ugc-creator-' + slot.id, function () { A.updateUgcSlot(c.id, month, slot.id, { creator: v }); });
+        } },
+      });
+
+      var brief = h('input', {
+        cls: 'input', attrs: { type: 'text', placeholder: 'Cosa deve girare il creator…',
+                               value: slot.brief || '', 'aria-label': 'Brief' },
+        on: { input: function () {
+          var v = brief.value;
+          debounced('ugc-brief-' + slot.id, function () { A.updateUgcSlot(c.id, month, slot.id, { brief: v }); });
+        } },
+      });
+
+      var status = h('select', {
+        cls: 'input', attrs: { 'aria-label': 'Stato' },
+        on: { change: function () { A.updateUgcSlot(c.id, month, slot.id, { ugcStato: status.value }); } },
+      }, A.UGC_STATI.map(function (st) {
+        var o = h('option', { text: st.label, attrs: { value: st.id, title: st.hint } });
+        if ((slot.ugcStato || 'raccolto') === st.id) o.selected = true;
+        return o;
+      }));
+
+      listWrap.appendChild(h('div', { cls: 'ugc-row' }, [
+        h('div', { cls: 'ugc-main' }, [date, creator, brief, status]),
+        h('div', { cls: 'ugc-side' }, [
+          h('button', {
+            cls: 'iconbtn', attrs: { 'aria-label': 'Elimina brief', title: 'Elimina brief' },
+            on: { click: function () {
+              if (!confirm('Eliminare questo brief?')) return;
+              A.removeUgcSlot(c.id, month, slot.id);
+              window.Shell.toast('Brief eliminato');
+            } },
+          }, [icon('trash', 13)]),
+        ]),
+      ]));
+    });
+
+    page.appendChild(listWrap);
+    mount.appendChild(page);
+  }
+
   /* ══ PREVIEW PICKER ═════════════════════════════════════════════════════
      Opens the client's portal in a NEW TAB, always. The portal is the
      client's surface and must never be framed inside the studio app — if it
@@ -816,6 +940,8 @@ window.Sections = (function () {
     contentPicker: renderContentPicker,
     calendarPicker: renderCalendarPicker,
     calendarMonth: renderCalendarMonth,
+    ugcPicker: renderUgcPicker,
+    ugcMonth: renderUgcMonth,
     preview: renderPreview,
     settings: renderSettings,
     clientTile: clientTile,

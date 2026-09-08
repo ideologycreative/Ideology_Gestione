@@ -220,7 +220,7 @@ window.App = (function () {
     var section = parts[0] || 'home';
     var id = parts[1] || null;
 
-    if (['home', 'clients', 'content', 'calendar', 'preview', 'settings'].indexOf(section) < 0) {
+    if (['home', 'clients', 'content', 'calendar', 'ugc', 'preview', 'settings'].indexOf(section) < 0) {
       section = 'home';
     }
 
@@ -233,6 +233,17 @@ window.App = (function () {
       var cal = clients().find(function (x) { return x.id === id; });
       if (cal) {
         patch.clientId = cal.id;
+        if (!state.month) patch.month = thisMonth();
+      }
+    }
+
+    /* UGC is client + month, same as Calendario — a brief goes out before
+       anyone knows which account the result lands on, so there is no
+       account to bind here either. */
+    if (section === 'ugc' && id) {
+      var uc = clients().find(function (x) { return x.id === id; });
+      if (uc) {
+        patch.clientId = uc.id;
         if (!state.month) patch.month = thisMonth();
       }
     }
@@ -733,6 +744,63 @@ window.App = (function () {
     return y + '-' + String(m).padStart(2, '0') + '-' + String(day).padStart(2, '0');
   }
 
+  /* ── UGC ─────────────────────────────────────────────────────────────────
+     Content a creator makes, not the studio — a brief, a handle, and a
+     status that moves independently of the approval pipeline above: a
+     creator's clip is raccolto (received), then selezionato, then adattato
+     (cut to the client's format) before it is approvato, or autonoma if the
+     creator posts it on their own account and this is only being tracked.
+
+     Client + month, deliberately not tied to an account — a brief goes out
+     to a creator before anyone knows which channel the result lands on.
+     Reuses the pedPlans shape the portal already reads (seed.js used to be
+     the only thing that ever wrote it); this is the missing studio side. */
+  var UGC_STATI = [
+    { id: 'raccolto',    label: 'Raccolto',    hint: 'Contenuto ricevuto dal creator' },
+    { id: 'selezionato', label: 'Selezionato', hint: 'Scelto tra i contenuti ricevuti' },
+    { id: 'adattato',    label: 'Adattato',    hint: 'Adattato al formato del cliente' },
+    { id: 'approvato',   label: 'Approvato',   hint: 'Pronto a uscire' },
+    { id: 'autonoma',    label: 'Autonoma',    hint: 'Il creator pubblica sul proprio profilo' },
+  ];
+  function ugcStatusOf(id) {
+    return UGC_STATI.find(function (s) { return s.id === id; }) || UGC_STATI[0];
+  }
+
+  function ugcSlots(clientId, month) {
+    var plans = S.get('pedPlans') || {};
+    var forClient = plans[clientId] || {};
+    var forMonth = forClient[month || state.month] || {};
+    return forMonth.slots || [];
+  }
+
+  function setUgcSlots(clientId, month, slots) {
+    var plans = Object.assign({}, S.get('pedPlans') || {});
+    var forClient = Object.assign({}, plans[clientId] || {});
+    forClient[month] = Object.assign({}, forClient[month], { slots: slots });
+    plans[clientId] = forClient;
+    S.set('pedPlans', plans);
+    emit('ugc');
+  }
+
+  function addUgcSlot(clientId, month, patch) {
+    var slot = Object.assign({
+      id: newId('u_'), date: defaultDate(), brief: '', type: 'UGC',
+      ugcStato: 'raccolto', creator: '',
+    }, patch || {});
+    setUgcSlots(clientId, month, ugcSlots(clientId, month).concat([slot]));
+    return slot.id;
+  }
+
+  function updateUgcSlot(clientId, month, slotId, patch) {
+    setUgcSlots(clientId, month, ugcSlots(clientId, month).map(function (s) {
+      return s.id === slotId ? Object.assign({}, s, patch) : s;
+    }));
+  }
+
+  function removeUgcSlot(clientId, month, slotId) {
+    setUgcSlots(clientId, month, ugcSlots(clientId, month).filter(function (s) { return s.id !== slotId; }));
+  }
+
   /* ── Progress ────────────────────────────────────────────────────────── */
 
   function progress(list) {
@@ -942,6 +1010,7 @@ window.App = (function () {
     rows:     '<path d="M3 5h18M3 12h18M3 19h18"/>',
     sun:      '<circle cx="12" cy="12" r="4.5"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M19.1 4.9L17 7M7 17l-2.1 2.1"/>',
     moon:     '<path d="M20 14.5A8.5 8.5 0 019.5 4a8.5 8.5 0 1010.5 10.5z"/>',
+    clapper:  '<path d="M3 10h18v10H3zM3 10l2-6h4l-2 6M11 10l2-6h4l-2 6M19 10l1.5-4.5"/>',
     calendar: '<path d="M3 5h18v16H3zM3 10h18M8 3v4M16 3v4"/>',
     plus:     '<path d="M12 5v14M5 12h14"/>',
     close:    '<path d="M6 6l12 12M18 6L6 18"/>',
@@ -992,6 +1061,9 @@ window.App = (function () {
     progress: progress, clientProgress: clientProgress, studioStats: studioStats,
     clientMonthDays: clientMonthDays,
     pillars: pillars, formats: formats, statusOf: statusOf,
+    UGC_STATI: UGC_STATI, ugcStatusOf: ugcStatusOf,
+    ugcSlots: ugcSlots, setUgcSlots: setUgcSlots,
+    addUgcSlot: addUgcSlot, updateUgcSlot: updateUgcSlot, removeUgcSlot: removeUgcSlot,
     addPillar: addPillar, updatePillar: updatePillar, removePillar: removePillar,
     hasStoryLink: hasStoryLink, setStoryLink: setStoryLink,
     studioLogo: studioLogo, setStudioLogo: setStudioLogo,

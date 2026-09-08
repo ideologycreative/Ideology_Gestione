@@ -73,7 +73,7 @@ try {
     check('brand token',        boot.brand.toUpperCase() === '#F2C700', boot.brand);
     check('page ground',        boot.bg === 'rgb(16, 16, 16)', boot.bg);
     check('mono face loaded',   boot.mono === true);
-    check('6 sections in menu', boot.menu.length === 6, boot.menu.join(' / '));
+    check('7 sections in menu', boot.menu.length === 7, boot.menu.join(' / '));
     check('boots on home',      boot.section === 'home' && boot.hasHero);
     check('home shows stats',   boot.stats === 5, boot.stats + ' stats');
 
@@ -737,6 +737,69 @@ try {
         theme.bgBefore + ' -> ' + theme.bgAfter);
       check('the choice is persisted', theme.saved === 'light', theme.saved);
       check('toggling again restores dark', theme.restored === 'dark', theme.restored);
+    }
+
+    /* ── UGC ────────────────────────────────────────────────────────────────
+       Was portal-only display of data only seed.js ever wrote. This is the
+       studio side: a per-client, per-month list of creator briefs, no
+       account involved (a brief goes out before anyone knows which channel
+       the result lands on). */
+    const ugc = await page.evaluate(async () => {
+      const seeded = App.clients().find(x => x.id === 'c_marefuori');
+      const fresh = App.clients().find(x => (x.accounts || []).length && x.id !== 'c_marefuori' && x.id !== 'c_vulcano');
+      if (!seeded || !fresh) return { skipped: true, why: 'expected demo clients missing' };
+
+      location.hash = '#/ugc/' + seeded.id;
+      await new Promise(r => setTimeout(r, 400));
+      const seededRows = document.querySelectorAll('.ugc-row').length;
+
+      location.hash = '#/ugc/' + fresh.id;
+      await new Promise(r => setTimeout(r, 400));
+      const month = App.state.month;
+      const before = document.querySelectorAll('.ugc-row').length;
+      const emptyShown = !!document.querySelector('.panel-empty');
+
+      const addBtn = [...document.querySelectorAll('.btn')].find(b => b.textContent.includes('Nuovo brief'));
+      if (!addBtn) return { skipped: true, why: 'no add-brief button' };
+      addBtn.click();
+      await new Promise(r => setTimeout(r, 300));
+      const afterAdd = document.querySelectorAll('.ugc-row').length;
+
+      const row = document.querySelector('.ugc-row');
+      const [dateInput, creatorInput, briefInput] = row.querySelectorAll('.ugc-main input');
+      const statusSelect = row.querySelector('.ugc-main select');
+      creatorInput.focus();
+      creatorInput.value = '@testcreator';
+      creatorInput.dispatchEvent(new Event('input', { bubbles: true }));
+      briefInput.focus();
+      briefInput.value = 'Unboxing in giardino';
+      briefInput.dispatchEvent(new Event('input', { bubbles: true }));
+      statusSelect.value = 'approvato';
+      statusSelect.dispatchEvent(new Event('change', { bubbles: true }));
+      await new Promise(r => setTimeout(r, 400));
+      const slot = App.ugcSlots(fresh.id, month)[0];
+
+      const delBtn = document.querySelector('.ugc-row .iconbtn');
+      const origConfirm = window.confirm;
+      window.confirm = () => true;
+      delBtn.click();
+      window.confirm = origConfirm;
+      await new Promise(r => setTimeout(r, 300));
+      const afterDelete = document.querySelectorAll('.ugc-row').length;
+
+      return { skipped: false, seededRows, before, emptyShown, afterAdd, slot, afterDelete };
+    });
+    if (ugc.skipped) {
+      check('UGC studio side', false, ugc.why);
+    } else {
+      check('seeded UGC briefs render', ugc.seededRows > 0, ugc.seededRows + ' rows');
+      check('a client with no UGC yet shows the empty state', ugc.before === 0 && ugc.emptyShown);
+      check('adding a brief grows the list', ugc.afterAdd === 1, ugc.afterAdd + '');
+      check('creator AND brief both commit (not just the last-edited field)',
+        !!ugc.slot && ugc.slot.creator === '@testcreator' && ugc.slot.brief === 'Unboxing in giardino',
+        JSON.stringify(ugc.slot));
+      check('status change commits', !!ugc.slot && ugc.slot.ugcStato === 'approvato');
+      check('removing a brief empties the list', ugc.afterDelete === 0);
     }
 
     await page.close();
