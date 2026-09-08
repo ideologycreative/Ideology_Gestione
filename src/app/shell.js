@@ -83,8 +83,9 @@ window.Shell = (function () {
         cls: 'rail-link', attrs: { title: isLight ? 'Passa al tema scuro' : 'Passa al tema chiaro' },
         on: { click: function () { A.setTheme(isLight ? 'dark' : 'light'); } },
       }, [icon(isLight ? 'moon' : 'sun', 12), isLight ? 'Scuro' : 'Chiaro']),
-      h('button', { cls: 'rail-link', on: { click: openPalette } },
-        [icon('search', 12), 'Cerca', h('kbd', { text: '⌘K' })]),
+      /* No search button here: the palette is a ⌘K thing. The shortcut and
+         Shell.openPalette() both still work — this only drops the visual
+         affordance for it. */
     ]));
   }
 
