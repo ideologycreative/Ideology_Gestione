@@ -29,7 +29,7 @@ const ROOT = dirname(fileURLToPath(new URL('.', import.meta.url)));
 
 // Minimal .env.local loader — no extra dependency for a one-off script.
 function loadEnvLocal() {
-  const path = join(ROOT, '..', '.env.local');
+  const path = join(ROOT, '.env.local');
   if (!existsSync(path)) return;
   for (const line of readFileSync(path, 'utf8').split('\n')) {
     const m = /^([A-Z0-9_]+)=(.*)$/.exec(line.trim());
@@ -158,13 +158,17 @@ async function main() {
       client_id: byName.Marefuori.id, account_id: mfIg.id, kind: 'feed', type: 'photo',
       url: 'https://picsum.photos/seed/mf1/1080/1350', date: '2026-09-02',
       copy: 'Il pescato di stamattina. Ricciola, gambero rosso, totani.',
-      pillar_id: pescato.id, appr_stato: 'pubblicato',
+      pillar_id: pescato.id, appr_stato: 'pubblicato', slides: [],
     },
     {
       client_id: byName.Marefuori.id, account_id: mfIg.id, kind: 'feed', type: 'carousel',
       url: 'https://picsum.photos/seed/mf2/1080/1350', date: '2026-09-10',
       copy: 'Weekend pieno — restano due tavoli per sabato.',
       pillar_id: pescato.id, format_id: carosello.id, appr_stato: 'approvare',
+      // supabase-js batch inserts derive the column set from the UNION of
+      // every object's keys — an object missing `slides` gets an explicit
+      // NULL for it (not "column omitted, use the DEFAULT"), which trips
+      // the NOT NULL constraint. Every item in this batch sets it.
       slides: [
         { url: 'https://picsum.photos/seed/mf2a/1080/1350', externalUrl: '', videoUrl: '', name: 'slide-1.jpg', copy: '', note: '' },
         { url: 'https://picsum.photos/seed/mf2b/1080/1350', externalUrl: '', videoUrl: '', name: 'slide-2.jpg', copy: 'Passaggio 2', note: '' },
@@ -174,7 +178,7 @@ async function main() {
       client_id: byName.Marefuori.id, account_id: mfIg.id, kind: 'feed', type: 'photo',
       url: 'https://picsum.photos/seed/mf3/1080/1350', date: '2026-09-16',
       copy: 'Non è un tramonto qualsiasi, è quello di ogni sera qui.',
-      appr_stato: 'bozza',
+      appr_stato: 'bozza', slides: [],
     },
   ];
   const inserted = must(await db.from('content_items').insert(items).select(), 'insert content_items');

@@ -1528,3 +1528,14 @@ select.input { font-family: var(--mono); font-size: 10px; letter-spacing: .06em;
 #toast { border-radius: var(--rs); box-shadow: var(--shadow-lg); }
 
 .rail-conn-dot { box-shadow: 0 0 0 2px var(--rail-bg); }
+
+/* ── Next.js port note ────────────────────────────────────────────────────
+   Everything below was a <button on:click=A.go(...)> in the legacy app —
+   real navigation now, so it's a Next <Link> (renders <a>). The class
+   rules already set their own color per state, which wins over the
+   anchor default regardless of tag — text-decoration is the one thing an
+   <a> adds that a <button> never had. */
+.menu-item, .rail-link, .rail-hd, .stat, .alert, .tile, .lcard, .card,
+.gcell, .cal-item, .cov-cell, .dot, .state, .target, .chip, .back {
+  text-decoration: none;
+}

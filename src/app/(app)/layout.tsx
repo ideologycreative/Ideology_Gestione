@@ -1,6 +1,8 @@
 import { redirect } from 'next/navigation';
 import { getProfile } from '@/lib/auth';
-import { signOutStudio } from '@/lib/sign-out';
+import { getMetaRailStatus } from '@/lib/rail-meta';
+import { RailNav } from '@/components/RailNav';
+import { InspectorProvider } from '@/components/InspectorContext';
 
 export default async function StudioLayout({ children }: { children: React.ReactNode }) {
   const profile = await getProfile();
@@ -14,15 +16,14 @@ export default async function StudioLayout({ children }: { children: React.React
   // own portal, not a permission-denied page.
   if (profile.kind !== 'studio') redirect('/portal');
 
+  const meta = await getMetaRailStatus();
+
   return (
-    <div className="app-shell-min">
-      <header className="app-shell-min-hd">
-        <span className="wordmark">IDEOLOGY STUDIO</span>
-        <form action={signOutStudio}>
-          <button className="rail-link" type="submit">Esci</button>
-        </form>
-      </header>
-      <main>{children}</main>
-    </div>
+    <InspectorProvider>
+      <div className="app">
+        <RailNav meta={meta} />
+        {children}
+      </div>
+    </InspectorProvider>
   );
 }
