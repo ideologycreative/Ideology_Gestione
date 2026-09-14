@@ -7,6 +7,9 @@
 <meta name="description" content="Piano editoriale — Ideology Creative Studio">
 <meta name="robots" content="noindex, nofollow">
 <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml"/>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin=""/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700&display=swap" rel="stylesheet"/>
 <link rel="stylesheet" href="/src/styles/ideology-tokens.css"/>
 <link rel="stylesheet" href="/src/styles/monthpicker.css"/>
 <style>
@@ -45,21 +48,12 @@
  * docs/smoke.mjs injects a payload and asserts it renders as text.
  */
 
-@font-face {
-  font-family: 'Ideology Mono';
-  src: url('/assets/fonts/JetBrainsMono-400.woff2') format('woff2');
-  font-weight: 400; font-display: swap;
-}
-@font-face {
-  font-family: 'Ideology Mono';
-  src: url('/assets/fonts/JetBrainsMono-700.woff2') format('woff2');
-  font-weight: 700; font-display: swap;
-}
+/* No local @font-face here — Inter loads via the Google Fonts <link> in
+   the page head instead of a vendored JetBrains Mono. */
 
 *, *::before, *::after { box-sizing: border-box; }
 
 :root {
-  --mono: 'Ideology Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   /* Aliased, not hard-coded: ideology-tokens.css already defines --border /
      --border-strong per theme (dark greys on black, light greys on white).
      Routing through those means every rule drawn with --rule flips for free
@@ -71,10 +65,10 @@
 
   /* Overwritten at boot from the client's own colour. The defaults are only
      what shows for the half-second before that runs. */
-  --accent: #F2C700;
-  --accent-on: #101010;
-  --accent-dim: rgba(242, 199, 0, .14);
-  --accent-glow: 0 0 14px rgba(242, 199, 0, .34);
+  --accent: #5B50E6;
+  --accent-on: #ffffff;
+  --accent-dim: rgba(91, 80, 230, .14);
+  --accent-glow: 0 0 14px rgba(91, 80, 230, .34);
 }
 
 body {
@@ -210,7 +204,7 @@ select.cv-sel:focus-visible { outline: 2px solid var(--accent); outline-offset: 
      heights read as a grid instead of a ragged edge. Actions stay pinned to
      the bottom of each cell via margin-top:auto. */
   align-items: stretch;
-  gap: 1px; background: var(--rule);
+  gap: 1px; background: var(--border-lt, var(--rule));
   border: 1px solid var(--rule);
   margin-bottom: 64px;
 }
@@ -269,7 +263,7 @@ select.cv-sel:focus-visible { outline: 2px solid var(--accent); outline-offset: 
   background: var(--brand); color: var(--brand-on);
   font-family: var(--mono); font-size: 10px; font-weight: 800;
   letter-spacing: .12em; text-transform: uppercase;
-  box-shadow: 0 2px 12px rgba(242, 199, 0, .5);
+  box-shadow: 0 2px 12px rgba(91, 80, 230, .5);
 }
 .cv-spon i { width: 6px; height: 6px; background: var(--brand-on); border-radius: 50%; flex-shrink: 0; }
 
@@ -499,7 +493,7 @@ select.cv-sel:focus-visible { outline: 2px solid var(--accent); outline-offset: 
 .cv-modal p { margin: 0 0 16px; color: var(--text-3); font-size: 12px; line-height: 1.6; }
 .cv-modal textarea {
   width: 100%; min-height: 120px; resize: vertical;
-  background: #0d0d0d; border: 1px solid var(--rule); border-radius: 0;
+  background: var(--surface-lt, #0d0d0d); border: 1px solid var(--rule); border-radius: 0;
   color: var(--text); font-family: var(--font); font-size: 13px; line-height: 1.6; padding: 12px;
 }
 .cv-modal textarea:focus { outline: none; border-color: var(--accent); }
@@ -529,7 +523,7 @@ select.cv-sel:focus-visible { outline: 2px solid var(--accent); outline-offset: 
 }
 .cv-ugc-grid {
   display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: 1px; background: var(--rule); border: 1px solid var(--rule);
+  gap: 1px; background: var(--border-lt, var(--rule)); border: 1px solid var(--rule);
 }
 .cv-slot { background: var(--bg); padding: 13px; }
 .cv-slot-date { font-family: var(--mono); font-size: 13px; font-weight: 700; letter-spacing: .04em; margin-bottom: 6px; }
@@ -553,6 +547,19 @@ select.cv-sel:focus-visible { outline: 2px solid var(--accent); outline-offset: 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { transition-duration: .01ms !important; }
 }
+
+/* ═══ SHAPE — Studio Slate & Obsidian ════════════════════════════════════
+   Colour/radius only, same reasoning as app.css's own shape block — every
+   selector above stays exactly as the terminal build wrote it (same
+   sizes, same padding). .cv-grid is deliberately left alone: a real
+   platform feed butts frames edge-to-edge with no gutter, and rounding
+   those corners would misrepresent the crop the client is approving. */
+select.cv-sel, .cv-seg button, .cv-btn, .cv-chip, .pv-close, .pv-nav, .cv-modal textarea { border-radius: var(--rs, 6px); }
+.cv-modal { border-radius: var(--r-lg, 12px); box-shadow: var(--shadow-xl); }
+.cv-fatal { border-radius: var(--r, 8px); }
+.cv-note, .cv-slot { border-radius: var(--r-xs, 4px); }
+.cv-toast { border-radius: var(--rs, 6px); box-shadow: var(--shadow-lg); }
+.pv-card { border-radius: var(--r, 8px); overflow: hidden; box-shadow: var(--shadow-xl); }
 </style>
 </head>
 <body>
@@ -658,7 +665,7 @@ select.cv-sel:focus-visible { outline: 2px solid var(--accent); outline-offset: 
   }
   function rgba(hex, a) {
     var m = /^#?([0-9a-f]{6})$/i.exec(String(hex || ''));
-    if (!m) return 'rgba(242,199,0,' + a + ')';
+    if (!m) return 'rgba(91,80,230,' + a + ')';
     var n = parseInt(m[1], 16);
     return 'rgba(' + (n >> 16) + ',' + ((n >> 8) & 255) + ',' + (n & 255) + ',' + a + ')';
   }

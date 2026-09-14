@@ -1,0 +1,72 @@
+/* ═══ AUTH — login screens (studio + portal) ═════════════════════════════
+   New surface, not part of the ported vanilla app — styled against the
+   same Studio Slate & Obsidian tokens as everything else. */
+
+.auth-wrap {
+  min-height: 100vh;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--bg);
+  padding: 24px;
+}
+
+.auth-card {
+  width: 100%; max-width: 360px;
+  display: flex; flex-direction: column; gap: 14px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-lg);
+  padding: 32px 28px;
+}
+
+.auth-card .mark {
+  width: 40px; height: 40px;
+  font-size: 18px;
+  margin-bottom: 4px;
+}
+
+.auth-title {
+  font-family: var(--font-display);
+  font-size: 21px; font-weight: 700; letter-spacing: -.02em;
+  margin: 0; color: var(--text);
+}
+.auth-sub {
+  margin: -8px 0 6px;
+  font-size: 12px; color: var(--text-3);
+}
+
+.auth-error {
+  margin: 0;
+  padding: 9px 11px;
+  border-radius: var(--rs);
+  background: var(--danger-bg);
+  border: 1px solid var(--danger-border);
+  color: var(--danger-text);
+  font-size: 12px;
+}
+
+.auth-submit { justify-content: center; margin-top: 4px; }
+
+.auth-portal-link {
+  margin-top: 6px;
+  text-align: center;
+  font-size: 11px;
+  color: var(--text-3);
+  text-decoration: none;
+}
+.auth-portal-link:hover { color: var(--brand); }
+
+/* ═══ Phase-A placeholder shell ═══════════════════════════════════════════
+   Stand-in for the real rail/header/inspector frame (app.css's .app grid),
+   which lands in Phase B when the studio UI itself is ported. This just
+   proves the auth gate + DB connection work end to end. */
+
+.app-shell-min-hd {
+  display: flex; align-items: center; justify-content: space-between;
+  height: 56px; padding: 0 20px;
+  background: var(--rail-bg); border-bottom: 1px solid var(--rail-border);
+}
+.app-shell-min-hd .wordmark { color: var(--rail-text); }
+.app-shell-min-hd .rail-link { color: var(--rail-text-dim); }
+.app-shell-min-hd .rail-link:hover { color: var(--rail-text); background: var(--rail-hover); }
+.app-shell-min main { padding: 32px; max-width: 720px; margin: 0 auto; }

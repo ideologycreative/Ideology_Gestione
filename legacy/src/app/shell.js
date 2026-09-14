@@ -514,7 +514,7 @@ window.Shell = (function () {
     A.state.view  = saved.view  || 'list';
     A.state.kind  = saved.kind  || 'feed';
     A.state.accountId = saved.accountId || null;
-    A.state.theme = saved.theme || 'dark';
+    A.state.theme = saved.theme || 'light';
     document.documentElement.setAttribute('data-theme', A.state.theme);
 
     A.subscribe(function (reason) {

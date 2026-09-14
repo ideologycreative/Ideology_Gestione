@@ -61,7 +61,7 @@ try {
         ? Object.values(window.IdeologyStore.get('feeds')).reduce((n, a) => n + a.length, 0) : -1,
       brand:   getComputedStyle(document.documentElement).getPropertyValue('--brand').trim(),
       bg:      getComputedStyle(document.body).backgroundColor,
-      mono:    document.fonts ? document.fonts.check('12px "Ideology Mono"') : null,
+      mono:    document.fonts ? document.fonts.check('12px "Inter"') : null,
       menu:    [...document.querySelectorAll('.menu-item')].map(e => e.textContent.trim()),
       section: document.body.dataset.section,
       hasHero: !!document.querySelector('.home-word'),
@@ -70,8 +70,8 @@ try {
 
     check('demo data seeded',   boot.seeded === 5, boot.seeded + ' clients');
     check('feeds seeded',       boot.posts > 100,  boot.posts + ' posts');
-    check('brand token',        boot.brand.toUpperCase() === '#F2C700', boot.brand);
-    check('page ground',        boot.bg === 'rgb(16, 16, 16)', boot.bg);
+    check('brand token',        boot.brand.toUpperCase() === '#5B50E6', boot.brand);
+    check('page ground',        boot.bg === 'rgb(248, 250, 252)', boot.bg);
     check('mono face loaded',   boot.mono === true);
     check('7 sections in menu', boot.menu.length === 7, boot.menu.join(' / '));
     check('boots on home',      boot.section === 'home' && boot.hasHero);
@@ -768,8 +768,9 @@ try {
     }
 
     /* ── Studio theme toggle ───────────────────────────────────────────────
-       The admin app was hardcoded dark; this is the app-wide light/dark
-       preference, separate from any client's own portal theme. */
+       Studio Slate & Obsidian defaults to the light Slate workspace, not
+       dark; this is the app-wide light/dark preference, separate from any
+       client's own portal theme. */
     const theme = await page.evaluate(async () => {
       const before = document.documentElement.getAttribute('data-theme');
       const bgBefore = getComputedStyle(document.documentElement).getPropertyValue('--bg').trim();
@@ -780,7 +781,7 @@ try {
       const after = document.documentElement.getAttribute('data-theme');
       const bgAfter = getComputedStyle(document.documentElement).getPropertyValue('--bg').trim();
       const saved = window.IdeologyStore.getSetting('ui', {}).theme;
-      // Flip back, so the rest of the suite runs against the usual dark bg.
+      // Flip back, so the rest of the suite runs against the usual light bg.
       // Matched by label, not by ".rail-link" position — the Meta connection
       // line shares that class and sits above this one in the footer.
       [...document.querySelectorAll('.rail-link')]
@@ -792,12 +793,12 @@ try {
     if (theme.skipped) {
       check('theme toggle', false, theme.why);
     } else {
-      check('starts dark', theme.before === 'dark', theme.before);
-      check('toggling flips data-theme to light', theme.after === 'light', theme.after);
+      check('starts light', theme.before === 'light', theme.before);
+      check('toggling flips data-theme to dark', theme.after === 'dark', theme.after);
       check('the page background actually changes', theme.bgBefore !== theme.bgAfter,
         theme.bgBefore + ' -> ' + theme.bgAfter);
-      check('the choice is persisted', theme.saved === 'light', theme.saved);
-      check('toggling again restores dark', theme.restored === 'dark', theme.restored);
+      check('the choice is persisted', theme.saved === 'dark', theme.saved);
+      check('toggling again restores light', theme.restored === 'light', theme.restored);
     }
 
     /* ── UGC ────────────────────────────────────────────────────────────────
@@ -1021,9 +1022,9 @@ try {
       client: (document.querySelector('.cv-client') || {}).textContent,
     }));
     check('light-theme client renders data-theme=light', lp.dataTheme === 'light', lp.dataTheme);
-    check('light-theme portal ground is white', lp.bg === 'rgb(255, 255, 255)', lp.bg);
+    check('light-theme portal ground is white', lp.bg === 'rgb(248, 250, 252)', lp.bg);
     check('light-theme portal text is dark, not washed out',
-      lp.text === 'rgb(16, 16, 16)', lp.text);
+      lp.text === 'rgb(15, 23, 42)', lp.text);
     check('opened the right client', lp.client === 'Nodo Studio', lp.client);
     await light.page.close();
 
