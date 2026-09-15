@@ -1,14 +1,20 @@
 import type { ApprStato, ContentType, Platform } from '@/lib/supabase/types';
 
-/** Ported from legacy/src/app/core.js's PLATFORMS. */
-export const PLATFORMS: Record<Platform, { label: string; feed: string; cols: number }> = {
-  Instagram: { label: 'Instagram', feed: '4/5', cols: 3 },
-  Facebook: { label: 'Facebook', feed: '1/1', cols: 3 },
-  TikTok: { label: 'TikTok', feed: '9/16', cols: 4 },
-  LinkedIn: { label: 'LinkedIn', feed: '1/1', cols: 3 },
-  YouTube: { label: 'YouTube', feed: '16/9', cols: 2 },
-  Pinterest: { label: 'Pinterest', feed: '2/3', cols: 4 },
-  Threads: { label: 'Threads', feed: '4/5', cols: 3 },
+/**
+ * Ported from legacy/src/app/core.js's PLATFORMS. `layout` is only used by
+ * the client portal's platform post-view mock (src/pages/client's PLATFORMS
+ * carried the same field) — 'ig' is the Instagram desktop media-left/
+ * caption-rail layout, 'fb'/'stack' both stack header→caption→media and
+ * differ only in which studio component reaches for them.
+ */
+export const PLATFORMS: Record<Platform, { label: string; feed: string; cols: number; layout: 'ig' | 'fb' | 'stack' }> = {
+  Instagram: { label: 'Instagram', feed: '4/5', cols: 3, layout: 'ig' },
+  Facebook: { label: 'Facebook', feed: '1/1', cols: 3, layout: 'fb' },
+  TikTok: { label: 'TikTok', feed: '9/16', cols: 4, layout: 'stack' },
+  LinkedIn: { label: 'LinkedIn', feed: '1/1', cols: 3, layout: 'fb' },
+  YouTube: { label: 'YouTube', feed: '16/9', cols: 2, layout: 'stack' },
+  Pinterest: { label: 'Pinterest', feed: '2/3', cols: 4, layout: 'stack' },
+  Threads: { label: 'Threads', feed: '4/5', cols: 3, layout: 'fb' },
 };
 export const STORY_RATIO = '9/16';
 

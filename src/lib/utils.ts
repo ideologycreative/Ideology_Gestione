@@ -36,3 +36,21 @@ export function onColor(hex: string | null | undefined): string {
   const f = (v: number) => (v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4));
   return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b) > 0.38 ? '#101010' : '#f2f2f2';
 }
+
+function rgba(hex: string | null | undefined, a: number): string {
+  const m = /^#?([0-9a-f]{6})$/i.exec(String(hex || ''));
+  if (!m) return `rgba(91,80,230,${a})`;
+  const n = parseInt(m[1], 16);
+  return `rgba(${n >> 16},${(n >> 8) & 255},${n & 255},${a})`;
+}
+
+/** The client's colour becomes the portal's whole accent system — set as inline CSS vars on the portal's root wrapper (see src/app/portal/(protected)/layout.tsx). */
+export function accentVars(hex: string | null | undefined): Record<string, string> {
+  const color = hex || '#5B50E6';
+  return {
+    '--accent': color,
+    '--accent-on': onColor(color),
+    '--accent-dim': rgba(color, 0.14),
+    '--accent-glow': `0 0 14px ${rgba(color, 0.34)}`,
+  };
+}
