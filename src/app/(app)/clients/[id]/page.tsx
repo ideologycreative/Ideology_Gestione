@@ -5,19 +5,28 @@ import { PageFrame } from '@/components/PageFrame';
 import { Icon } from '@/components/Icon';
 import { ClientEditForm, ClientDangerZone } from '@/components/ClientEditForm';
 import { ClientAccessCard } from '@/components/ClientAccessCard';
+import { getAllMetaPagesWithBindings, bindingIssue } from '@/lib/meta';
 
 export default async function ClientEditPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const supabase = await createClient();
 
-  const [{ data: client }, { data: pillars }, { data: accounts }, { data: portalUsers }] = await Promise.all([
+  const [{ data: client }, { data: pillars }, { data: accounts }, { data: portalUsers }, metaPages] = await Promise.all([
     supabase.from('clients').select('*').eq('id', id).single(),
     supabase.from('pillars').select('*').eq('client_id', id).order('name'),
     supabase.from('accounts').select('*').eq('client_id', id).order('created_at'),
     supabase.from('profiles').select('name').eq('client_id', id).eq('kind', 'client'),
+    getAllMetaPagesWithBindings(),
   ]);
 
   if (!client) notFound();
+
+  const bindingIssues: Record<string, string> = {};
+  for (const a of accounts ?? []) {
+    if (a.platform !== 'Instagram' && a.platform !== 'Facebook') continue;
+    const issue = await bindingIssue(a);
+    if (issue) bindingIssues[a.id] = issue;
+  }
 
   return (
     <PageFrame>
@@ -41,7 +50,7 @@ export default async function ClientEditPage({ params }: { params: Promise<{ id:
           </div>
         </div>
 
-        <ClientEditForm client={client} pillars={pillars ?? []} accounts={accounts ?? []} />
+        <ClientEditForm client={client} pillars={pillars ?? []} accounts={accounts ?? []} metaPages={metaPages} bindingIssues={bindingIssues} />
 
         <div className="form-grid" style={{ marginTop: 15 }}>
           <ClientAccessCard clientId={client.id} existingUsers={portalUsers ?? []} />

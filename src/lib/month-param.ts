@@ -20,3 +20,11 @@ export function monthLabel(d: Date): string {
 export function shiftMonth(d: Date, delta: number): Date {
   return new Date(d.getFullYear(), d.getMonth() + delta, 1);
 }
+
+/** Days in the month + Monday-first lead offset for the coverage/calendar grids. */
+export function monthMeta(d: Date): { days: number; lead: number } {
+  const first = new Date(d.getFullYear(), d.getMonth(), 1);
+  const days = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+  const lead = (first.getDay() + 6) % 7;
+  return { days, lead };
+}

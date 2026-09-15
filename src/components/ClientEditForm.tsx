@@ -3,9 +3,11 @@
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { Icon } from '@/components/Icon';
+import { MetaBindingRow } from '@/components/MetaBindingRow';
 import { initials, safeUrl, onColor } from '@/lib/utils';
 import { useDebouncedCommit } from '@/lib/use-debounced-commit';
 import type { Database } from '@/lib/supabase/types';
+import type { MetaPageWithBinding } from '@/lib/meta';
 import {
   updateClient,
   deleteClient,
@@ -36,10 +38,14 @@ export function ClientEditForm({
   client,
   pillars: initialPillars,
   accounts: initialAccounts,
+  metaPages,
+  bindingIssues,
 }: {
   client: ClientRow;
   pillars: PillarRow[];
   accounts: AccountRow[];
+  metaPages: MetaPageWithBinding[];
+  bindingIssues: Record<string, string>;
 }) {
   const router = useRouter();
   const debounced = useDebouncedCommit();
@@ -294,7 +300,8 @@ export function ClientEditForm({
         <p className="panel-sub">Il formato di ogni piattaforma decide le proporzioni della griglia, nel pannello e nel portale cliente.</p>
 
         {accounts.map((a) => (
-          <div className="acc-row" key={a.id}>
+          <div key={a.id}>
+          <div className="acc-row">
             <div className="acc-main">
               <select
                 className="input"
@@ -353,9 +360,16 @@ export function ClientEditForm({
                 <Icon name="trash" size={13} />
               </button>
             </div>
-            {/* Meta page binding lands here in the next pass — this row is
-                ready for it (accounts already carry meta_connection_id /
-                meta_page_id / meta_ig_user_id). */}
+          </div>
+          {(a.platform === 'Instagram' || a.platform === 'Facebook') && (
+            <MetaBindingRow
+              clientId={client.id}
+              account={a}
+              pages={metaPages}
+              boundPage={metaPages.find((p) => p.connection_id === a.meta_connection_id && p.page_id === a.meta_page_id) ?? null}
+              issue={bindingIssues[a.id] ?? null}
+            />
+          )}
           </div>
         ))}
 
