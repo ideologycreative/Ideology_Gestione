@@ -133,6 +133,7 @@ export interface Database {
           publish_state: PublishState;
           permalink: string | null;
           publish_error: string | null;
+          sort_order: number;
           created_at: string;
           updated_at: string;
         };

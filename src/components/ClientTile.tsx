@@ -10,16 +10,19 @@ export function ClientTile({
   client,
   accounts,
   progress,
+  href,
 }: {
   client: Client;
   accounts: string[];
   progress?: Progress;
+  /** Defaults to the client editor — pass a section-specific path (e.g. `/content/${id}`) from a picker. */
+  href?: string;
 }) {
   const logo = safeUrl(client.logo_url);
   const p = progress ?? { done: 0, total: 0, pending: 0, pct: 0 };
 
   return (
-    <Link href={`/clients/${client.id}`} className="tile" title={client.name}>
+    <Link href={href ?? `/clients/${client.id}`} className="tile" title={client.name}>
       <span className="tile-bar" style={{ background: client.color || 'var(--brand)' }} />
       <div className="tile-hd">
         {logo ? (
