@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { Icon } from '@/components/Icon';
 import { Thumb } from '@/components/content/Thumb';
-import { STATUSES, TYPES, statusOf, ratioFor } from '@/lib/platforms';
+import { STATUSES, TYPES, statusOf, ratioFor, fmtDay } from '@/lib/platforms';
 import { safeUrl } from '@/lib/utils';
 import { useDebouncedCommit } from '@/lib/use-debounced-commit';
 import {
@@ -11,6 +11,7 @@ import {
   removeItem,
   setTargets,
   setStoryLink,
+  retryPublish,
 } from '@/app/(app)/content/[clientId]/actions';
 import type { Database, Slide } from '@/lib/supabase/types';
 
@@ -122,6 +123,29 @@ export function InspectorPanel({
           </div>
         </Field>
 
+        {/* ── Auto-publish ──────────────────────────────────────────── */}
+        {item.publish_state !== 'pending' && (
+          <div className={'pub-status' + (item.publish_state === 'failed' ? ' is-failed' : '')}>
+            {item.publish_state === 'scheduled' && (
+              <span>Programmato per il {fmtDay(item.date)} alle {item.publish_time.slice(0, 5)}</span>
+            )}
+            {item.publish_state === 'publishing' && <span>Pubblicazione in corso…</span>}
+            {item.publish_state === 'failed' && (
+              <>
+                <span>Pubblicazione non riuscita{item.publish_error ? `: ${item.publish_error}` : '.'}</span>
+                <button className="btn btn--xs" onClick={() => void retryPublish(clientId, item.id)}>
+                  Riprova
+                </button>
+              </>
+            )}
+            {item.publish_state === 'published' && item.permalink && (
+              <a href={item.permalink} target="_blank" rel="noreferrer">
+                Vedi il post pubblicato →
+              </a>
+            )}
+          </div>
+        )}
+
         {/* ── Channels ──────────────────────────────────────────────── */}
         {accounts.length > 1 && (
           <Field
@@ -215,7 +239,7 @@ export function InspectorPanel({
           />
         </Field>
 
-        {/* ── Date + type ───────────────────────────────────────────── */}
+        {/* ── Date + time + type ────────────────────────────────────── */}
         <div className="f-row">
           <Field label="Data">
             <input
@@ -224,6 +248,15 @@ export function InspectorPanel({
               aria-label="Data di pubblicazione"
               defaultValue={item.date}
               onChange={(e) => void patchItem(clientId, item.id, { date: e.target.value })}
+            />
+          </Field>
+          <Field label="Ora" hint="Orario di pubblicazione automatica, una volta approvato.">
+            <input
+              className="input"
+              type="time"
+              aria-label="Ora di pubblicazione"
+              defaultValue={item.publish_time.slice(0, 5)}
+              onChange={(e) => void patchItem(clientId, item.id, { publish_time: e.target.value })}
             />
           </Field>
           <Field label="Tipo">

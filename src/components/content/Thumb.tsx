@@ -30,6 +30,7 @@ export function Thumb({ item, ratio }: { item: ItemRow; ratio: string }) {
       {item.type === 'reel' && <span className="thumb-tag">REEL</span>}
       {item.kind === 'story' && <span className="thumb-tag thumb-tag--l">STORY</span>}
       {item.sponsored && <span className="thumb-spon">SPONSOR</span>}
+      {item.publish_state === 'failed' && <span className="thumb-pub" title={item.publish_error || ''}>ERRORE</span>}
     </div>
   );
 }

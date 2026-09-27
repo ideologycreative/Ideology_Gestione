@@ -94,8 +94,11 @@ function ListView({
               <div className="lcard-ft">
                 <div className="lcard-meta">
                   <span className="lcard-date">{fmtDay(item.date)}</span>
-                  <span className="lstatus" data-s={item.appr_stato}>
+                  <span className="lstatus" data-s={item.appr_stato} style={item.publish_state === 'failed' ? { color: 'var(--danger-text)' } : undefined}>
                     {st.label}
+                    {item.publish_state === 'scheduled' && ' · Programmato'}
+                    {item.publish_state === 'publishing' && ' · In corso'}
+                    {item.publish_state === 'failed' && ' · Errore'}
                   </span>
                 </div>
                 <span className={'lcard-cap' + (item.copy ? '' : ' lcard-cap--empty')}>{item.copy || 'Senza caption'}</span>

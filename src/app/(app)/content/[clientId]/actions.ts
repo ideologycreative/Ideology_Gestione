@@ -58,6 +58,21 @@ export async function createItem(
   return data.id;
 }
 
+/** A failed mock-publish attempt doesn't retry itself — appr_stato/date/publish_time are unchanged, so the auto-schedule trigger never re-fires on its own. Reset the item, then explicitly re-run the same scheduling the trigger would have. */
+export async function retryPublish(clientId: string, itemId: string) {
+  const supabase = await createClient();
+  const { error: resetError } = await supabase
+    .from('content_items')
+    .update({ publish_state: 'pending', publish_error: null })
+    .eq('id', itemId);
+  if (resetError) throw new Error(resetError.message);
+
+  const { error: scheduleError } = await supabase.rpc('schedule_item_publish', { p_item_id: itemId });
+  if (scheduleError) throw new Error(scheduleError.message);
+
+  revalidate(clientId);
+}
+
 export async function removeItem(clientId: string, itemId: string) {
   const supabase = await createClient();
   const { error } = await supabase.from('content_items').delete().eq('id', itemId);

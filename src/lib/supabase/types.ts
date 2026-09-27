@@ -230,6 +230,10 @@ export interface Database {
         Args: { p_item_id: string; p_note: string };
         Returns: void;
       };
+      schedule_item_publish: {
+        Args: { p_item_id: string };
+        Returns: void;
+      };
     };
     Enums: {
       appr_stato: ApprStato;

@@ -60,6 +60,6 @@ export function fmtDay(iso: string | null | undefined): string {
 /** Fields that describe the CONTENT, kept identical across every channel a post goes out on. */
 export const SHARED_FIELDS = [
   'url', 'external_url', 'video_url', 'slides',
-  'copy', 'note', 'date', 'pillar_id', 'format_id',
+  'copy', 'note', 'date', 'publish_time', 'pillar_id', 'format_id',
   'type', 'sponsored',
 ] as const;

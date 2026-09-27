@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation';
 import { getProfile } from '@/lib/auth';
 import { getMetaRailStatus } from '@/lib/rail-meta';
+import { runPublishSweep } from '@/lib/publish-sweep';
 import { RailNav } from '@/components/RailNav';
 import { InspectorProvider } from '@/components/InspectorContext';
 
@@ -15,6 +16,11 @@ export default async function StudioLayout({ children }: { children: React.React
   // A client account wandering onto the studio URLs gets sent to their
   // own portal, not a permission-denied page.
   if (profile.kind !== 'studio') redirect('/portal');
+
+  // Plays the role legacy's sweepPublished() played at boot — a mock
+  // publisher pass on every studio page load (the portal's layout does the
+  // same). Never let a sweep hiccup break a page render.
+  await runPublishSweep().catch((e) => console.error('publish sweep failed', e));
 
   const meta = await getMetaRailStatus();
 

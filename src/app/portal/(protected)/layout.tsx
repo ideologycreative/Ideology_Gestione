@@ -3,6 +3,7 @@ import { getProfile } from '@/lib/auth';
 import { signOutClient } from '@/lib/sign-out';
 import { createClient } from '@/lib/supabase/server';
 import { accentVars, onColor } from '@/lib/utils';
+import { runPublishSweep } from '@/lib/publish-sweep';
 import '@/styles/portal.css';
 
 /** Ported from legacy client portal's masthead() — Ideology first (the studio's own logo, uploaded in Impostazioni), the client's colour/logo second, whose page this is is unambiguous from the first glance. */
@@ -10,6 +11,12 @@ export default async function PortalLayout({ children }: { children: React.React
   const profile = await getProfile();
   if (!profile) redirect('/portal/login');
   if (profile.kind !== 'client') redirect('/');
+
+  // Same mock-publisher boot pass as the studio shell — a post scheduled
+  // for a time that's already passed flips to Pubblicato the moment
+  // anyone (studio or client) next loads a page, same as legacy's
+  // sweepPublished() being called from both apps' init().
+  await runPublishSweep().catch((e) => console.error('publish sweep failed', e));
 
   const supabase = await createClient();
   const [{ data: client }, { data: logoSetting }] = await Promise.all([

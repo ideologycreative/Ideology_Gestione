@@ -59,10 +59,15 @@ export async function proxy(request: NextRequest) {
 export const config = {
   matcher: [
     /*
-     * Every request except static assets and Next's own internals — a
-     * signed-out visitor hitting any real page should hit the redirect
-     * above, not a broken data fetch three components deep.
+     * Every PAGE request except static assets, Next's own internals, and
+     * API routes — a signed-out visitor hitting any real page should hit
+     * the redirect above, not a broken data fetch three components deep.
+     * API routes are excluded on purpose: they need to be reachable by
+     * callers with no browser session at all (the cron publish-sweep
+     * route's bearer-secret check, a future Meta OAuth callback), so each
+     * one does its own authorization instead of being redirected to a
+     * login page before its handler ever runs.
      */
-    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+    '/((?!_next/static|_next/image|favicon.ico|api/|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 };
