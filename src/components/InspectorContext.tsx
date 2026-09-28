@@ -13,11 +13,15 @@ const InspectorCtx = createContext<InspectorState | null>(null);
 export function InspectorProvider({ children }: { children: ReactNode }) {
   const [content, setContent] = useState<ReactNode | null>(null);
 
-  // The CSS grid only makes room for the inspector column when
-  // body.has-inspector is set (see app.css's .app rule) — same mechanism
-  // the legacy app used.
+  // The inspector is a modal now (see PageFrame/app.css's #inspector-scrim)
+  // — Escape closes it same as clicking outside or its own close button.
   useEffect(() => {
-    document.body.classList.toggle('has-inspector', content != null);
+    if (!content) return;
+    function onKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') setContent(null);
+    }
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
   }, [content]);
 
   return (

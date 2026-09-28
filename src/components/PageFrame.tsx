@@ -19,7 +19,7 @@ export function PageFrame({
   status?: ReactNode;
   children: ReactNode;
 }) {
-  const { content: inspectorContent } = useInspector();
+  const { content: inspectorContent, close } = useInspector();
 
   return (
     <>
@@ -29,9 +29,18 @@ export function PageFrame({
       <main id="view" tabIndex={-1}>
         {children}
       </main>
-      <aside id="inspector" className={inspectorContent ? 'is-open' : ''} aria-label="Dettaglio contenuto">
-        {inspectorContent}
-      </aside>
+      {inspectorContent && (
+        <div
+          id="inspector-scrim"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) close();
+          }}
+        >
+          <aside id="inspector" aria-label="Dettaglio contenuto">
+            {inspectorContent}
+          </aside>
+        </div>
+      )}
       <footer id="status" className={status ? '' : 'is-bare'}>
         {status}
       </footer>

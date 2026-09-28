@@ -44,7 +44,7 @@
   --track: .14em;
 
   --rail-w: 208px;
-  --insp-w: 340px;
+  --insp-w: 480px;
   --hd-h: 56px;
   --st-h: 30px;
 
@@ -87,23 +87,36 @@ body {
 
 .app {
   display: grid;
-  grid-template-columns: var(--rail-w) 1fr 0;
+  grid-template-columns: var(--rail-w) 1fr;
   grid-template-rows: var(--hd-h) 1fr var(--st-h);
   grid-template-areas:
-    "rail header header"
-    "rail view   inspector"
-    "status status status";
+    "rail header"
+    "rail view"
+    "status status";
   height: 100vh;
-  transition: grid-template-columns var(--t-base);
 }
-body.has-inspector .app { grid-template-columns: var(--rail-w) 1fr var(--insp-w); }
 
 #rail      { grid-area: rail;      background: var(--rail-bg); border-right: 1px solid var(--rail-border); display: flex; flex-direction: column; overflow: hidden; }
 #header    { grid-area: header;    border-bottom: 1px solid var(--rule); display: flex; align-items: center; gap: 12px; padding: 0 14px; overflow-x: auto; }
 #view      { grid-area: view;      overflow: auto; }
-#inspector { grid-area: inspector; border-left: 1px solid var(--rule); overflow: hidden; display: none; flex-direction: column; }
-#inspector.is-open { display: flex; }
 #status    { grid-area: status;    border-top: 1px solid var(--rule); display: flex; align-items: center; gap: 10px; padding: 0 12px; }
+
+/* Centered, not docked — PageFrame only mounts this when there's content,
+   so no display:none/is-open toggle is needed here. Covers the whole
+   viewport (including the rail), the same convention Linear/Notion/Cal.com
+   all use for a record-detail dialog. */
+#inspector-scrim {
+  position: fixed; inset: 0; z-index: 140;
+  background: var(--overlay);
+  display: flex; align-items: center; justify-content: center;
+  padding: 24px;
+}
+#inspector {
+  width: 100%; max-width: var(--insp-w); max-height: 100%;
+  background: var(--surface); border: 1px solid var(--rule); border-radius: var(--r-lg);
+  box-shadow: var(--shadow-xl);
+  overflow: hidden; display: flex; flex-direction: column;
+}
 /* Home and Settings have no "month on screen", so the contextual bars go
    quiet rather than showing controls that would act on nothing. */
 #header.is-bare { border-bottom: 0; }
@@ -1147,7 +1160,11 @@ body.is-dragging .col { background: rgba(91,80,230,.02); }
 .toggle.is-on .toggle-track i { transform: translateX(12px); background: var(--brand); }
 
 /* ═══ INSPECTOR ═══════════════════════════════════════════════════════════
-   Docked, not modal — you edit while the board stays visible. */
+   A centered modal (src/styles/app.css's #inspector-scrim/#inspector,
+   toggled by mounting the content — see InspectorContext) rather than the
+   docked panel this used to be. The dock kept the board visible while you
+   edited; the modal trades that for focus and, on real content, for not
+   needing to squeeze five status rows and every field into 340px. */
 
 .insp-hd {
   display: flex; align-items: center; gap: 8px;
@@ -1449,7 +1466,6 @@ select.input { font-family: var(--mono); font-size: 10px; letter-spacing: .06em;
     grid-template-areas: "rail" "header" "view" "status";
     height: auto; min-height: 100vh;
   }
-  body.has-inspector .app { grid-template-columns: 1fr; }
   #rail { flex-direction: row; align-items: center; border-right: 0; border-bottom: 1px solid var(--rail-border); overflow-x: auto; }
   .rail-hd { border-bottom: 0; border-right: 1px solid var(--rail-border); width: auto; }
   .rail-ft { display: none; }
@@ -1462,10 +1478,12 @@ select.input { font-family: var(--mono); font-size: 10px; letter-spacing: .06em;
   .cov { max-width: none; }
   .acc-main { grid-template-columns: 1fr; }
   #header { height: auto; flex-wrap: wrap; padding: 10px 12px; }
-  #inspector.is-open {
-    position: fixed; inset: auto 0 0 0; z-index: 150;
-    height: 78vh; border-left: 0; border-top: 2px solid var(--brand);
-    background: var(--bg);
+  /* Bottom sheet, not a centered card — the mobile-native equivalent of
+     the desktop dialog, same as this already did before the modal change. */
+  #inspector-scrim { align-items: flex-end; padding: 0; }
+  #inspector {
+    max-width: none; height: 78vh; max-height: 78vh;
+    border-radius: var(--r-lg) var(--r-lg) 0 0; border-top: 2px solid var(--brand); border-left: 0; border-right: 0; border-bottom: 0;
   }
   .board { grid-template-columns: repeat(5, 240px); overflow-x: auto; }
   .btn, .seg-b, .iconbtn { min-height: 40px; }   /* finger, not pointer */

@@ -12,9 +12,9 @@
  *   · rounded, hairline-bordered cards with real (if minimal) elevation,
  *     replacing the other build's hard-edge brackets-and-rules language
  *
- * Fonts load from Google Fonts via <link> in the HTML head (Plus Jakarta
- * Sans for headlines/display, Inter for body and machine-text) — no local
- * vendored @font-face here, unlike the other build.
+ * Fonts are self-hosted via next/font/google in src/app/layout.tsx (Plus
+ * Jakarta Sans for headlines/display, Inter for body, JetBrains Mono for
+ * machine-text) — no external Google Fonts request at runtime.
  *
  * NAMING — read this before adding a token.
  *   1. --brand-* / --bg / --surface-* / --text-*  → the live palette.
@@ -97,15 +97,16 @@
   --info-text:      #0D9488;
 
   /* ══ TYPOGRAPHY ══════════════════════════════════════════════════════════
-     Loaded via Google Fonts <link> in the page head. Plus Jakarta Sans
-     carries headlines and the wordmark; Inter carries everything dense —
-     body copy AND the small uppercase "machine" labels that the other
-     build set in a literal monospace. Sizes/tracking are unchanged from
-     the original — only the typeface swapped. */
+     Self-hosted via next/font (src/app/layout.tsx). Plus Jakarta Sans
+     carries headlines and the wordmark; Inter carries body copy; JetBrains
+     Mono carries the small uppercase "machine" labels (status tokens, ids,
+     timestamps) — a real monospace with tabular figures, not Inter wearing
+     a mono hat. Sizes/tracking are unchanged from the original — only the
+     typeface swapped. */
   --font:         'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   --font-display: 'Plus Jakarta Sans', 'Inter', -apple-system, 'Segoe UI', sans-serif;
   --font-mark:    var(--font-display);
-  --mono:         'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --mono:         'JetBrains Mono', ui-monospace, 'SFMono-Regular', Consolas, monospace;
 
   --fs-xs:   11px;
   --fs-sm:   13px;
