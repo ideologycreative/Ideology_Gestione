@@ -44,7 +44,8 @@
   --track: .14em;
 
   --rail-w: 208px;
-  --insp-w: 480px;
+  --insp-w: 640px;
+  --insp-left-w: 224px;
   --hd-h: 56px;
   --st-h: 30px;
 
@@ -1176,7 +1177,19 @@ body.is-dragging .col { background: rgba(91,80,230,.02); }
 .insp-id   { font-size: 8px; color: var(--rule-2); }
 
 .insp-body { padding: 12px; overflow-y: auto; flex: 1; display: flex; flex-direction: column; gap: 14px; }
-.insp-body > .thumb { max-height: 230px; }
+.insp-body > .thumb, .insp-left > .thumb { max-height: 230px; }
+
+/* Identity + timing on the left (fixed width, short fields only — nothing
+   here grows unpredictably), the content-description fields that need
+   reading room on the right. A carousel can have any number of slides, so
+   that editor — and everything else variable-length — stays full-width
+   below the grid rather than fighting for space in a fixed column. */
+.insp-grid { display: grid; grid-template-columns: var(--insp-left-w) 1fr; gap: 14px; align-items: start; }
+.insp-left { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.insp-right { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+@media (max-width: 560px) {
+  .insp-grid { grid-template-columns: 1fr; }
+}
 
 .f { display: flex; flex-direction: column; gap: 6px; }
 .f-row { display: flex; gap: 8px; }

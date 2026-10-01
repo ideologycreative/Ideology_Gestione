@@ -95,207 +95,208 @@ export function InspectorPanel({
       )}
 
       <div className="insp-body">
-        <Thumb item={item} ratio={placement} />
+        <div className="insp-grid">
+          {/* ── Left: identity + timing ─────────────────────────────── */}
+          <div className="insp-left">
+            <Thumb item={item} ratio={placement} />
 
-        {/* ── Status ────────────────────────────────────────────────── */}
-        <Field label="Stato" hint={st.hint}>
-          <div className="statelist" role="radiogroup" aria-label="Stato">
-            {STATUSES.map((s) => {
-              const on = item.appr_stato === s.id;
-              return (
+            <Field label="Stato" hint={st.hint}>
+              <div className="statelist" role="radiogroup" aria-label="Stato">
+                {STATUSES.map((s) => {
+                  const on = item.appr_stato === s.id;
+                  return (
+                    <button
+                      key={s.id}
+                      className={'state' + (on ? ' is-on' : '')}
+                      role="radio"
+                      aria-checked={on}
+                      data-s={s.id}
+                      title={s.hint}
+                      onClick={() => {
+                        if (on) return;
+                        void patchItem(clientId, item.id, { appr_stato: s.id });
+                      }}
+                    >
+                      <span className="state-tok">{s.token}</span>
+                      <span className="state-lbl">{s.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </Field>
+
+            {item.publish_state !== 'pending' && (
+              <div className={'pub-status' + (item.publish_state === 'failed' ? ' is-failed' : '')}>
+                {item.publish_state === 'scheduled' && (
+                  <span>Programmato per il {fmtDay(item.date)} alle {item.publish_time.slice(0, 5)}</span>
+                )}
+                {item.publish_state === 'publishing' && <span>Pubblicazione in corso…</span>}
+                {item.publish_state === 'failed' && (
+                  <>
+                    <span>Pubblicazione non riuscita{item.publish_error ? `: ${item.publish_error}` : '.'}</span>
+                    <button className="btn btn--xs" onClick={() => void retryPublish(clientId, item.id)}>
+                      Riprova
+                    </button>
+                  </>
+                )}
+                {item.publish_state === 'published' && item.permalink && (
+                  <a href={item.permalink} target="_blank" rel="noreferrer">
+                    Vedi il post pubblicato →
+                  </a>
+                )}
+              </div>
+            )}
+
+            <Field label="Data">
+              <input
+                className="input"
+                type="date"
+                aria-label="Data di pubblicazione"
+                defaultValue={item.date}
+                onChange={(e) => void patchItem(clientId, item.id, { date: e.target.value })}
+              />
+            </Field>
+            <Field label="Ora" hint="Orario di pubblicazione automatica, una volta approvato.">
+              <input
+                className="input"
+                type="time"
+                aria-label="Ora di pubblicazione"
+                defaultValue={item.publish_time.slice(0, 5)}
+                onChange={(e) => void patchItem(clientId, item.id, { publish_time: e.target.value })}
+              />
+            </Field>
+          </div>
+
+          {/* ── Right: what it is + where it goes ───────────────────── */}
+          <div className="insp-right">
+            {accounts.length > 1 && (
+              <Field
+                label="Pubblica su"
+                hint={
+                  targetAccountIds.length > 1
+                    ? 'Immagine, caption e data restano uguali su tutti i canali. Approvazione separata.'
+                    : 'Seleziona un altro canale per pubblicare lo stesso contenuto anche lì.'
+                }
+              >
+                <div className="targets">
+                  {accounts.map((a) => {
+                    const on = targetAccountIds.includes(a.id);
+                    const locked = on && targetAccountIds.length === 1;
+                    const pf = a.platform;
+                    return (
+                      <button
+                        key={a.id}
+                        className={'target' + (on ? ' is-on' : '')}
+                        role="switch"
+                        aria-checked={on}
+                        disabled={locked}
+                        title={locked ? 'Un contenuto deve restare su almeno un canale' : pf}
+                        onClick={async () => {
+                          const next = on ? targetAccountIds.filter((x) => x !== a.id) : [...targetAccountIds, a.id];
+                          if (!next.length) return;
+                          const res = await setTargets(clientId, item.id, next);
+                          if (res.removedSelf) onClosedByRemoval(res.nextId, res.nextAccountId);
+                        }}
+                      >
+                        <span className="target-box">{on && <Icon name="check" size={11} />}</span>
+                        <span className="target-name">{a.platform}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </Field>
+            )}
+
+            <div className="f-row">
+              <Field
+                label={item.kind === 'story' ? 'Anche nei Post' : 'Anche nelle Storie'}
+                hint={
+                  item.kind === 'story'
+                    ? 'Pubblica lo stesso contenuto anche nel feed di questo account.'
+                    : 'Pubblica lo stesso contenuto anche nelle Storie di questo account.'
+                }
+              >
                 <button
-                  key={s.id}
-                  className={'state' + (on ? ' is-on' : '')}
-                  role="radio"
-                  aria-checked={on}
-                  data-s={s.id}
-                  title={s.hint}
-                  onClick={() => {
-                    if (on) return;
-                    void patchItem(clientId, item.id, { appr_stato: s.id });
-                  }}
+                  className={'toggle' + (hasStoryLink ? ' is-on' : '')}
+                  role="switch"
+                  aria-checked={hasStoryLink}
+                  onClick={() => void setStoryLink(clientId, item.id, !hasStoryLink)}
                 >
-                  <span className="state-tok">{s.token}</span>
-                  <span className="state-lbl">{s.label}</span>
+                  <span className="toggle-track">
+                    <i />
+                  </span>
+                  <Icon name="layers" size={13} />
+                  <span>{hasStoryLink ? 'Collegato' : 'Indipendente'}</span>
                 </button>
-              );
-            })}
-          </div>
-        </Field>
+              </Field>
 
-        {/* ── Auto-publish ──────────────────────────────────────────── */}
-        {item.publish_state !== 'pending' && (
-          <div className={'pub-status' + (item.publish_state === 'failed' ? ' is-failed' : '')}>
-            {item.publish_state === 'scheduled' && (
-              <span>Programmato per il {fmtDay(item.date)} alle {item.publish_time.slice(0, 5)}</span>
-            )}
-            {item.publish_state === 'publishing' && <span>Pubblicazione in corso…</span>}
-            {item.publish_state === 'failed' && (
-              <>
-                <span>Pubblicazione non riuscita{item.publish_error ? `: ${item.publish_error}` : '.'}</span>
-                <button className="btn btn--xs" onClick={() => void retryPublish(clientId, item.id)}>
-                  Riprova
+              <Field label="Sponsorizzazione" hint={item.sponsored ? 'Il cliente vedrà il badge SPONSOR sul contenuto.' : 'Attiva per i contenuti a pagamento.'}>
+                <button
+                  className={'toggle' + (item.sponsored ? ' is-on' : '')}
+                  role="switch"
+                  aria-checked={item.sponsored}
+                  onClick={() => void patchItem(clientId, item.id, { sponsored: !item.sponsored })}
+                >
+                  <span className="toggle-track">
+                    <i />
+                  </span>
+                  <Icon name="megaphone" size={13} />
+                  <span>{item.sponsored ? 'Sponsorizzato' : 'Organico'}</span>
                 </button>
-              </>
-            )}
-            {item.publish_state === 'published' && item.permalink && (
-              <a href={item.permalink} target="_blank" rel="noreferrer">
-                Vedi il post pubblicato →
-              </a>
-            )}
-          </div>
-        )}
-
-        {/* ── Channels ──────────────────────────────────────────────── */}
-        {accounts.length > 1 && (
-          <Field
-            label="Pubblica su"
-            hint={
-              targetAccountIds.length > 1
-                ? 'Immagine, caption e data restano uguali su tutti i canali. Approvazione separata.'
-                : 'Seleziona un altro canale per pubblicare lo stesso contenuto anche lì.'
-            }
-          >
-            <div className="targets">
-              {accounts.map((a) => {
-                const on = targetAccountIds.includes(a.id);
-                const locked = on && targetAccountIds.length === 1;
-                const pf = a.platform;
-                return (
-                  <button
-                    key={a.id}
-                    className={'target' + (on ? ' is-on' : '')}
-                    role="switch"
-                    aria-checked={on}
-                    disabled={locked}
-                    title={locked ? 'Un contenuto deve restare su almeno un canale' : pf}
-                    onClick={async () => {
-                      const next = on ? targetAccountIds.filter((x) => x !== a.id) : [...targetAccountIds, a.id];
-                      if (!next.length) return;
-                      const res = await setTargets(clientId, item.id, next);
-                      if (res.removedSelf) onClosedByRemoval(res.nextId, res.nextAccountId);
-                    }}
-                  >
-                    <span className="target-box">{on && <Icon name="check" size={11} />}</span>
-                    <span className="target-name">{a.platform}</span>
-                  </button>
-                );
-              })}
+              </Field>
             </div>
-          </Field>
-        )}
 
-        {/* ── Feed ⇄ Story ──────────────────────────────────────────── */}
-        <Field
-          label={item.kind === 'story' ? 'Anche nei Post' : 'Anche nelle Storie'}
-          hint={
-            item.kind === 'story'
-              ? 'Pubblica lo stesso contenuto anche nel feed di questo account.'
-              : 'Pubblica lo stesso contenuto anche nelle Storie di questo account.'
-          }
-        >
-          <button
-            className={'toggle' + (hasStoryLink ? ' is-on' : '')}
-            role="switch"
-            aria-checked={hasStoryLink}
-            onClick={() => void setStoryLink(clientId, item.id, !hasStoryLink)}
-          >
-            <span className="toggle-track">
-              <i />
-            </span>
-            <Icon name="layers" size={13} />
-            <span>{hasStoryLink ? 'Collegato' : 'Indipendente'}</span>
-          </button>
-        </Field>
+            <Field label="Caption" hint={`${copy.length} caratteri`}>
+              <textarea
+                className="input input--area"
+                rows={5}
+                placeholder="Scrivi la caption…"
+                aria-label="Caption"
+                value={copy}
+                onChange={(e) => {
+                  setCopy(e.target.value);
+                  debounced('copy', () => void patchItem(clientId, item.id, { copy: e.target.value }));
+                }}
+              />
+            </Field>
 
-        {/* ── Sponsored ─────────────────────────────────────────────── */}
-        <Field label="Sponsorizzazione" hint={item.sponsored ? 'Il cliente vedrà il badge SPONSOR sul contenuto.' : 'Attiva per i contenuti a pagamento.'}>
-          <button
-            className={'toggle' + (item.sponsored ? ' is-on' : '')}
-            role="switch"
-            aria-checked={item.sponsored}
-            onClick={() => void patchItem(clientId, item.id, { sponsored: !item.sponsored })}
-          >
-            <span className="toggle-track">
-              <i />
-            </span>
-            <Icon name="megaphone" size={13} />
-            <span>{item.sponsored ? 'Sponsorizzato' : 'Organico'}</span>
-          </button>
-        </Field>
+            <Field label="Tipo">
+              <select
+                className="input"
+                aria-label="Formato"
+                defaultValue={item.type}
+                onChange={(e) => void patchItem(clientId, item.id, { type: e.target.value as ItemRow['type'] })}
+              >
+                {TYPES.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.label}
+                  </option>
+                ))}
+              </select>
+            </Field>
 
-        {/* ── Caption ───────────────────────────────────────────────── */}
-        <Field label="Caption" hint={`${copy.length} caratteri`}>
-          <textarea
-            className="input input--area"
-            rows={5}
-            placeholder="Scrivi la caption…"
-            aria-label="Caption"
-            value={copy}
-            onChange={(e) => {
-              setCopy(e.target.value);
-              debounced('copy', () => void patchItem(clientId, item.id, { copy: e.target.value }));
-            }}
-          />
-        </Field>
-
-        {/* ── Date + time + type ────────────────────────────────────── */}
-        <div className="f-row">
-          <Field label="Data">
-            <input
-              className="input"
-              type="date"
-              aria-label="Data di pubblicazione"
-              defaultValue={item.date}
-              onChange={(e) => void patchItem(clientId, item.id, { date: e.target.value })}
-            />
-          </Field>
-          <Field label="Ora" hint="Orario di pubblicazione automatica, una volta approvato.">
-            <input
-              className="input"
-              type="time"
-              aria-label="Ora di pubblicazione"
-              defaultValue={item.publish_time.slice(0, 5)}
-              onChange={(e) => void patchItem(clientId, item.id, { publish_time: e.target.value })}
-            />
-          </Field>
-          <Field label="Tipo">
-            <select
-              className="input"
-              aria-label="Formato"
-              defaultValue={item.type}
-              onChange={(e) => void patchItem(clientId, item.id, { type: e.target.value as ItemRow['type'] })}
-            >
-              {TYPES.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.label}
-                </option>
-              ))}
-            </select>
-          </Field>
+            {pillars.length > 0 && (
+              <Field label="Categoria" hint="Aggiungi o modifica le categorie dalla scheda del cliente.">
+                <div className="chips">
+                  {pillars.map((p) => {
+                    const on = item.pillar_id === p.id;
+                    return (
+                      <button
+                        key={p.id}
+                        className={'chip' + (on ? ' is-on' : '')}
+                        aria-pressed={on}
+                        onClick={() => void patchItem(clientId, item.id, { pillar_id: on ? null : p.id })}
+                      >
+                        <i style={{ background: p.color }} />
+                        {p.name}
+                      </button>
+                    );
+                  })}
+                </div>
+              </Field>
+            )}
+          </div>
         </div>
-
-        {/* ── Category ──────────────────────────────────────────────── */}
-        {pillars.length > 0 && (
-          <Field label="Categoria" hint="Aggiungi o modifica le categorie dalla scheda del cliente.">
-            <div className="chips">
-              {pillars.map((p) => {
-                const on = item.pillar_id === p.id;
-                return (
-                  <button
-                    key={p.id}
-                    className={'chip' + (on ? ' is-on' : '')}
-                    aria-pressed={on}
-                    onClick={() => void patchItem(clientId, item.id, { pillar_id: on ? null : p.id })}
-                  >
-                    <i style={{ background: p.color }} />
-                    {p.name}
-                  </button>
-                );
-              })}
-            </div>
-          </Field>
-        )}
 
         {/* ── Media ─────────────────────────────────────────────────── */}
         {item.type !== 'carousel' && (
