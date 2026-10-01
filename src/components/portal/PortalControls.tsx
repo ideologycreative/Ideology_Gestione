@@ -1,5 +1,6 @@
 'use client';
 
+import { useOptimistic, startTransition } from 'react';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import { MonthPicker } from '@/components/content/MonthPicker';
 import { MONTHS } from '@/lib/dates';
@@ -30,10 +31,19 @@ export function PortalControls({
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
-  function setParam(key: string, value: string) {
-    const next = new URLSearchParams(searchParams.toString());
-    next.set(key, value);
-    router.push(`${pathname}?${next.toString()}`);
+  type NavState = { view: typeof view; accountId: string | null; month: Date };
+  const [opt, setOpt] = useOptimistic<NavState, Partial<NavState>>(
+    { view, accountId: account?.id ?? null, month },
+    (state, patch) => ({ ...state, ...patch })
+  );
+
+  function setParam(key: string, value: string, optimisticPatch?: Partial<NavState>) {
+    startTransition(() => {
+      if (optimisticPatch) setOpt(optimisticPatch);
+      const next = new URLSearchParams(searchParams.toString());
+      next.set(key, value);
+      router.push(`${pathname}?${next.toString()}`);
+    });
   }
 
   const CELLS = 18;
@@ -43,12 +53,12 @@ export function PortalControls({
     <div className="cv-head">
       <div className="cv-month-block">
         <h1 className="cv-month">
-          {MONTHS[month.getMonth()]} <b>PED</b>
+          {MONTHS[opt.month.getMonth()]} <b>PED</b>
         </h1>
-        <div className="cv-year">{month.getFullYear()} · Piano editoriale</div>
+        <div className="cv-year">{opt.month.getFullYear()} · Piano editoriale</div>
       </div>
 
-      {view === 'preview' && total > 0 && (
+      {opt.view === 'preview' && total > 0 && (
         <div className="cv-counter">
           <div className="cv-count">
             <b>{String(done).padStart(2, '0')}</b>
@@ -66,26 +76,28 @@ export function PortalControls({
       <div className="cv-controls">
         {hasUgc && (
           <div className="cv-seg">
-            <button type="button" aria-pressed={view === 'preview'} onClick={() => setParam('view', 'preview')}>
+            <button type="button" aria-pressed={opt.view === 'preview'} onClick={() => setParam('view', 'preview', { view: 'preview' })}>
               Contenuti
             </button>
-            <button type="button" aria-pressed={view === 'ugc'} onClick={() => setParam('view', 'ugc')}>
+            <button type="button" aria-pressed={opt.view === 'ugc'} onClick={() => setParam('view', 'ugc', { view: 'ugc' })}>
               UGC
             </button>
           </div>
         )}
 
-        {view === 'preview' && accounts.length > 1 && (
+        {opt.view === 'preview' && accounts.length > 1 && (
           <div className="cv-seg">
             {accounts.map((a) => (
-              <button key={a.id} type="button" aria-pressed={a.id === account?.id} onClick={() => setParam('account', a.id)}>
+              <button key={a.id} type="button" aria-pressed={a.id === opt.accountId} onClick={() => setParam('account', a.id, { accountId: a.id })}>
                 {a.platform}
               </button>
             ))}
           </div>
         )}
 
-        {view === 'preview' && <MonthPicker value={month} onPick={(d) => setParam('month', monthParam(d))} />}
+        {opt.view === 'preview' && (
+          <MonthPicker value={opt.month} onPick={(d) => setParam('month', monthParam(d), { month: d })} />
+        )}
       </div>
     </div>
   );

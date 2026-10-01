@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { useOptimistic, startTransition } from 'react';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import { Icon } from '@/components/Icon';
 import { MonthPicker } from '@/components/content/MonthPicker';
@@ -35,13 +36,26 @@ export function WorkspaceHeader({
   const searchParams = useSearchParams();
   const month = parseMonthParam(searchParams.get('month') ?? undefined);
 
-  function pushParam(patch: Record<string, string | null>) {
-    const next = new URLSearchParams(searchParams.toString());
-    for (const [k, v] of Object.entries(patch)) {
-      if (v === null) next.delete(k);
-      else next.set(k, v);
-    }
-    router.push(`${pathname}?${next.toString()}`);
+  // router.push re-renders this whole header from fresh server props, which
+  // is a real round trip — kind/view/account/month all sat frozen on the
+  // old value for ~500ms after every click. Same useOptimistic fix as the
+  // Inspector, just painting a navigation instead of a mutation.
+  type NavState = { kind: typeof kind; view: typeof view; accountId: string | null; month: Date };
+  const [opt, setOpt] = useOptimistic<NavState, Partial<NavState>>(
+    { kind, view, accountId: account?.id ?? null, month },
+    (state, patch) => ({ ...state, ...patch })
+  );
+
+  function pushParam(patch: Record<string, string | null>, optimisticPatch?: Partial<NavState>) {
+    startTransition(() => {
+      if (optimisticPatch) setOpt(optimisticPatch);
+      const next = new URLSearchParams(searchParams.toString());
+      for (const [k, v] of Object.entries(patch)) {
+        if (v === null) next.delete(k);
+        else next.set(k, v);
+      }
+      router.push(`${pathname}?${next.toString()}`);
+    });
   }
 
   const logo = safeUrl(client.logo_url);
@@ -69,9 +83,9 @@ export function WorkspaceHeader({
             <button
               key={a.id}
               className="seg-b"
-              aria-pressed={account?.id === a.id}
+              aria-pressed={opt.accountId === a.id}
               title={`${a.platform}`}
-              onClick={() => pushParam({ account: a.id, item: null })}
+              onClick={() => pushParam({ account: a.id, item: null }, { accountId: a.id })}
             >
               {a.platform}
             </button>
@@ -82,11 +96,28 @@ export function WorkspaceHeader({
       ) : null}
 
       <div className="stepper">
-        <button className="iconbtn" aria-label="Mese precedente" onClick={() => pushParam({ month: monthParam(shiftMonth(month, -1)), item: null })}>
+        <button
+          className="iconbtn"
+          aria-label="Mese precedente"
+          onClick={() => {
+            const d = shiftMonth(opt.month, -1);
+            pushParam({ month: monthParam(d), item: null }, { month: d });
+          }}
+        >
           <Icon name="left" size={14} />
         </button>
-        <MonthPicker value={month} onPick={(d) => pushParam({ month: monthParam(d), item: null })} />
-        <button className="iconbtn" aria-label="Mese successivo" onClick={() => pushParam({ month: monthParam(shiftMonth(month, 1)), item: null })}>
+        <MonthPicker
+          value={opt.month}
+          onPick={(d) => pushParam({ month: monthParam(d), item: null }, { month: d })}
+        />
+        <button
+          className="iconbtn"
+          aria-label="Mese successivo"
+          onClick={() => {
+            const d = shiftMonth(opt.month, 1);
+            pushParam({ month: monthParam(d), item: null }, { month: d });
+          }}
+        >
           <Icon name="right" size={14} />
         </button>
       </div>
@@ -112,7 +143,7 @@ export function WorkspaceHeader({
             { id: 'story', label: 'Storie' },
           ] as const
         ).map((k) => (
-          <button key={k.id} className="seg-b" aria-pressed={kind === k.id} onClick={() => pushParam({ kind: k.id, item: null })}>
+          <button key={k.id} className="seg-b" aria-pressed={opt.kind === k.id} onClick={() => pushParam({ kind: k.id, item: null }, { kind: k.id })}>
             {k.label}
           </button>
         ))}
@@ -126,7 +157,7 @@ export function WorkspaceHeader({
             { id: 'grid', label: 'Griglia', ic: 'grid' },
           ] as const
         ).map((v) => (
-          <button key={v.id} className="seg-b" aria-pressed={view === v.id} title={v.label} onClick={() => pushParam({ view: v.id })}>
+          <button key={v.id} className="seg-b" aria-pressed={opt.view === v.id} title={v.label} onClick={() => pushParam({ view: v.id }, { view: v.id })}>
             <Icon name={v.ic} size={13} />
             <span className="seg-t">{v.label}</span>
           </button>

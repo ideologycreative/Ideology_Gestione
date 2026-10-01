@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useOptimistic, startTransition } from 'react';
 import { Icon } from '@/components/Icon';
 import { Thumb } from '@/components/content/Thumb';
 import { STATUSES, statusOf, fmtDay, platform, ratioFor } from '@/lib/platforms';
@@ -130,10 +130,19 @@ function BoardView({
 }) {
   const [overCol, setOverCol] = useState<string | null>(null);
 
+  // Dropping a card used to wait for the server round trip before it moved
+  // columns — items came straight from the items prop, so nothing visually
+  // happened until revalidatePath delivered fresh data.
+  const [optItems, setOptItems] = useOptimistic(
+    items,
+    (state, patch: { id: string; appr_stato: ItemRow['appr_stato'] }) =>
+      state.map((i) => (i.id === patch.id ? { ...i, appr_stato: patch.appr_stato } : i))
+  );
+
   return (
     <div className="board">
       {STATUSES.map((st) => {
-        const inCol = items.filter((i) => (i.appr_stato || 'bozza') === st.id);
+        const inCol = optItems.filter((i) => (i.appr_stato || 'bozza') === st.id);
         return (
           <div
             key={st.id}
@@ -148,9 +157,12 @@ function BoardView({
               e.preventDefault();
               setOverCol(null);
               const id = e.dataTransfer.getData('text/plain');
-              const cur = items.find((i) => i.id === id);
+              const cur = optItems.find((i) => i.id === id);
               if (!cur || (cur.appr_stato || 'bozza') === st.id) return;
-              void patchItem(clientId, id, { appr_stato: st.id });
+              startTransition(async () => {
+                setOptItems({ id, appr_stato: st.id });
+                await patchItem(clientId, id, { appr_stato: st.id });
+              });
             }}
           >
             <div className="col-hd">
