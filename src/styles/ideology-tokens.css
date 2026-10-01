@@ -13,8 +13,8 @@
  *     replacing the other build's hard-edge brackets-and-rules language
  *
  * Fonts are self-hosted via next/font/google in src/app/layout.tsx (Plus
- * Jakarta Sans for headlines/display, Inter for body, JetBrains Mono for
- * machine-text) — no external Google Fonts request at runtime.
+ * Jakarta Sans for headlines/display, Inter for body and --mono alike) — no
+ * external Google Fonts request at runtime.
  *
  * NAMING — read this before adding a token.
  *   1. --brand-* / --bg / --surface-* / --text-*  → the live palette.
@@ -80,21 +80,28 @@
        pubblicato → info     (Teal)    not one of the reference's four states
                                         (which stop at "Approved"); teal keeps
                                         it visually distinct from all four. */
+  /* -text values are darkened off the familiar Tailwind-500 swatch, not used
+     as-is: #10B981/#F59E0B/#F43F5E/#0D9488 read at 1.96–3.74:1 against
+     --surface and their own tinted -bg, well under the 4.5:1 AA floor for
+     text — exactly the kind of pastel-on-pastel status chip that reads as
+     "hard to read" at the 9–11px badge sizes these run at. These shades
+     hold ≥4.75:1 against every background they're actually painted on
+     (--surface, --surface-lt, and all four tinted -bg values). */
   --success-bg:     #ECFDF5;
   --success-border: #A7F3D0;
-  --success-text:   #10B981;
+  --success-text:   #007D45;
 
   --warning-bg:     #FFFBEB;
   --warning-border: #FDE68A;
-  --warning-text:   #F59E0B;
+  --warning-text:   #AB5400;
 
   --danger-bg:      #FFF1F2;
   --danger-border:  #FECDD3;
-  --danger-text:    #F43F5E;
+  --danger-text:    #D31E3D;
 
   --info-bg:        #F0FDFA;
   --info-border:    #99F6E4;
-  --info-text:      #0D9488;
+  --info-text:      #007A6E;
 
   /* ══ TYPOGRAPHY ══════════════════════════════════════════════════════════
      Self-hosted via next/font (src/app/layout.tsx). Plus Jakarta Sans
