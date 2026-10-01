@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useOptimistic, startTransition } from 'react';
 import { Icon } from '@/components/Icon';
 import { Thumb } from '@/components/content/Thumb';
 import { STATUSES, TYPES, statusOf, ratioFor, fmtDay } from '@/lib/platforms';
@@ -63,7 +63,17 @@ export function InspectorPanel({
   const [videoUrl, setVideoUrl] = useState(item.video_url);
   const [slides, setSlides] = useState<Slide[]>((item.slides as Slide[]) ?? []);
 
-  const st = statusOf(item.appr_stato);
+  // Every one of these edits is a server action + revalidatePath — a real
+  // round trip, visible as ~500ms of nothing happening after a click.
+  // useOptimistic paints the new state the instant it's clicked; it
+  // reconciles back to the real value once the awaited action resolves
+  // (or snaps back, on error).
+  const [optimisticStato, setOptimisticStato] = useOptimistic(item.appr_stato, (_s, next: ItemRow['appr_stato']) => next);
+  const [optimisticSponsored, setOptimisticSponsored] = useOptimistic(item.sponsored, (_s, next: boolean) => next);
+  const [optimisticPillar, setOptimisticPillar] = useOptimistic(item.pillar_id, (_s, next: string | null) => next);
+  const [optimisticStoryLink, setOptimisticStoryLink] = useOptimistic(hasStoryLink, (_s, next: boolean) => next);
+
+  const st = statusOf(optimisticStato);
   const placement = ratioFor(item, account, 'detail');
 
   function commitSlides(next: Slide[]) {
@@ -103,7 +113,7 @@ export function InspectorPanel({
             <Field label="Stato" hint={st.hint}>
               <div className="statelist" role="radiogroup" aria-label="Stato">
                 {STATUSES.map((s) => {
-                  const on = item.appr_stato === s.id;
+                  const on = optimisticStato === s.id;
                   return (
                     <button
                       key={s.id}
@@ -114,7 +124,10 @@ export function InspectorPanel({
                       title={s.hint}
                       onClick={() => {
                         if (on) return;
-                        void patchItem(clientId, item.id, { appr_stato: s.id });
+                        startTransition(async () => {
+                          setOptimisticStato(s.id);
+                          await patchItem(clientId, item.id, { appr_stato: s.id });
+                        });
                       }}
                     >
                       <span className="state-tok">{s.token}</span>
@@ -217,31 +230,43 @@ export function InspectorPanel({
                 }
               >
                 <button
-                  className={'toggle' + (hasStoryLink ? ' is-on' : '')}
+                  className={'toggle' + (optimisticStoryLink ? ' is-on' : '')}
                   role="switch"
-                  aria-checked={hasStoryLink}
-                  onClick={() => void setStoryLink(clientId, item.id, !hasStoryLink)}
+                  aria-checked={optimisticStoryLink}
+                  onClick={() => {
+                    const next = !optimisticStoryLink;
+                    startTransition(async () => {
+                      setOptimisticStoryLink(next);
+                      await setStoryLink(clientId, item.id, next);
+                    });
+                  }}
                 >
                   <span className="toggle-track">
                     <i />
                   </span>
                   <Icon name="layers" size={13} />
-                  <span>{hasStoryLink ? 'Collegato' : 'Indipendente'}</span>
+                  <span>{optimisticStoryLink ? 'Collegato' : 'Indipendente'}</span>
                 </button>
               </Field>
 
-              <Field label="Sponsorizzazione" hint={item.sponsored ? 'Il cliente vedrà il badge SPONSOR sul contenuto.' : 'Attiva per i contenuti a pagamento.'}>
+              <Field label="Sponsorizzazione" hint={optimisticSponsored ? 'Il cliente vedrà il badge SPONSOR sul contenuto.' : 'Attiva per i contenuti a pagamento.'}>
                 <button
-                  className={'toggle' + (item.sponsored ? ' is-on' : '')}
+                  className={'toggle' + (optimisticSponsored ? ' is-on' : '')}
                   role="switch"
-                  aria-checked={item.sponsored}
-                  onClick={() => void patchItem(clientId, item.id, { sponsored: !item.sponsored })}
+                  aria-checked={optimisticSponsored}
+                  onClick={() => {
+                    const next = !optimisticSponsored;
+                    startTransition(async () => {
+                      setOptimisticSponsored(next);
+                      await patchItem(clientId, item.id, { sponsored: next });
+                    });
+                  }}
                 >
                   <span className="toggle-track">
                     <i />
                   </span>
                   <Icon name="megaphone" size={13} />
-                  <span>{item.sponsored ? 'Sponsorizzato' : 'Organico'}</span>
+                  <span>{optimisticSponsored ? 'Sponsorizzato' : 'Organico'}</span>
                 </button>
               </Field>
             </div>
@@ -279,13 +304,19 @@ export function InspectorPanel({
               <Field label="Categoria" hint="Aggiungi o modifica le categorie dalla scheda del cliente.">
                 <div className="chips">
                   {pillars.map((p) => {
-                    const on = item.pillar_id === p.id;
+                    const on = optimisticPillar === p.id;
                     return (
                       <button
                         key={p.id}
                         className={'chip' + (on ? ' is-on' : '')}
                         aria-pressed={on}
-                        onClick={() => void patchItem(clientId, item.id, { pillar_id: on ? null : p.id })}
+                        onClick={() => {
+                          const next = on ? null : p.id;
+                          startTransition(async () => {
+                            setOptimisticPillar(next);
+                            await patchItem(clientId, item.id, { pillar_id: next });
+                          });
+                        }}
                       >
                         <i style={{ background: p.color }} />
                         {p.name}
