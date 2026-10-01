@@ -98,15 +98,19 @@
 
   /* ══ TYPOGRAPHY ══════════════════════════════════════════════════════════
      Self-hosted via next/font (src/app/layout.tsx). Plus Jakarta Sans
-     carries headlines and the wordmark; Inter carries body copy; JetBrains
-     Mono carries the small uppercase "machine" labels (status tokens, ids,
-     timestamps) — a real monospace with tabular figures, not Inter wearing
-     a mono hat. Sizes/tracking are unchanged from the original — only the
-     typeface swapped. */
+     carries headlines and the wordmark; Inter carries body copy AND
+     --mono. A real monospace (JetBrains Mono) was tried here briefly —
+     app.css routes var(--mono) through nav labels, every button, every
+     field label, and full-sentence field hints, not just short status
+     tokens, so a genuine monospace made the whole app read like a
+     terminal instead of a tool. Reverted: --mono stays Inter, same as
+     every screenshot approved before that one slice. If a real
+     monospace is wanted later, it needs a narrower var(--mono) usage
+     first (status tokens/ids/timestamps only), not a font swap alone. */
   --font:         'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   --font-display: 'Plus Jakarta Sans', 'Inter', -apple-system, 'Segoe UI', sans-serif;
   --font-mark:    var(--font-display);
-  --mono:         'JetBrains Mono', ui-monospace, 'SFMono-Regular', Consolas, monospace;
+  --mono:         'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 
   --fs-xs:   11px;
   --fs-sm:   13px;
