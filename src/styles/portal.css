@@ -450,3 +450,42 @@
 .cv-note, .cv-slot { border-radius: var(--r-xs, 4px); }
 .cv-toast { border-radius: var(--rs, 6px); box-shadow: var(--shadow-lg); }
 .pv-card { border-radius: var(--r, 8px); overflow: hidden; box-shadow: var(--shadow-xl); }
+
+/* ═══ STUDIO PREVIEW (src/app/preview/[clientId]) ════════════════════════
+   The studio's own read-only mirror of this page — deliberately styled
+   off the client portal's own tokens (client accent, cv-grid) rather than
+   the admin app's chrome, since the whole point is showing what the
+   client sees, not an admin screen with a panel swapped out. The banner
+   and status pills below are the only things that don't exist in the
+   real portal — everything else here is genuinely the portal's own
+   language. */
+.preview-back {
+  display: inline-flex; align-items: center; gap: 4px;
+  margin: 22px 0 0;
+  font-size: 12px; color: var(--text-3); text-decoration: none;
+}
+.preview-back:hover { color: var(--text); }
+.preview-banner {
+  margin-top: 14px; padding: 10px 14px;
+  background: var(--warning-bg); border: 1px solid var(--warning-border);
+  color: var(--warning-text); font-size: 12px; line-height: 1.5;
+  border-radius: var(--r-xs, 4px);
+}
+.preview-accounts { display: flex; gap: 8px; margin-top: 18px; }
+.preview-acc {
+  padding: 7px 14px; border: 1px solid var(--rule); border-radius: var(--rs, 6px);
+  font-size: 11px; letter-spacing: .04em; text-transform: uppercase;
+  color: var(--text-3); text-decoration: none;
+}
+.preview-acc:hover { color: var(--text); border-color: var(--rule-2); }
+.preview-acc.is-on { color: var(--accent); border-color: var(--accent); font-weight: 600; }
+.preview-status {
+  align-self: flex-start;
+  font-size: 10px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
+  padding: 3px 7px; border-radius: var(--r-xs, 4px);
+  color: var(--text-3); background: var(--surface-lt, var(--surface));
+}
+.preview-status[data-s="approvare"]  { color: var(--warning-text); background: var(--warning-bg); }
+.preview-status[data-s="revisione"]  { color: var(--danger-text);  background: var(--danger-bg); }
+.preview-status[data-s="approvato"]  { color: var(--success-text); background: var(--success-bg); }
+.preview-status[data-s="pubblicato"] { color: var(--info-text);    background: var(--info-bg); }
