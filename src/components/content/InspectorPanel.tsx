@@ -72,6 +72,7 @@ export function InspectorPanel({
   const [optimisticSponsored, setOptimisticSponsored] = useOptimistic(item.sponsored, (_s, next: boolean) => next);
   const [optimisticPillar, setOptimisticPillar] = useOptimistic(item.pillar_id, (_s, next: string | null) => next);
   const [optimisticStoryLink, setOptimisticStoryLink] = useOptimistic(hasStoryLink, (_s, next: boolean) => next);
+  const [optimisticType, setOptimisticType] = useOptimistic(item.type, (_s, next: ItemRow['type']) => next);
 
   const st = statusOf(optimisticStato);
   const placement = ratioFor(item, account, 'detail');
@@ -289,8 +290,14 @@ export function InspectorPanel({
               <select
                 className="input"
                 aria-label="Formato"
-                defaultValue={item.type}
-                onChange={(e) => void patchItem(clientId, item.id, { type: e.target.value as ItemRow['type'] })}
+                value={optimisticType}
+                onChange={(e) => {
+                  const next = e.target.value as ItemRow['type'];
+                  startTransition(async () => {
+                    setOptimisticType(next);
+                    await patchItem(clientId, item.id, { type: next });
+                  });
+                }}
               >
                 {TYPES.map((t) => (
                   <option key={t.id} value={t.id}>
@@ -330,7 +337,7 @@ export function InspectorPanel({
         </div>
 
         {/* ── Media ─────────────────────────────────────────────────── */}
-        {item.type !== 'carousel' && (
+        {optimisticType !== 'carousel' && (
           <Field label="Media">
             <input
               className="input"
@@ -360,7 +367,7 @@ export function InspectorPanel({
         )}
 
         {/* ── Carousel slides ───────────────────────────────────────── */}
-        {item.type === 'carousel' && (
+        {optimisticType === 'carousel' && (
           <Field
             label={`Slide del carosello (${slides.length})`}
             hint="La prima slide è la copertina mostrata in griglia. Una slide con video mostra la sua immagine finché non viene aperta."
@@ -462,7 +469,7 @@ export function InspectorPanel({
         )}
 
         {/* ── Video (reel) ──────────────────────────────────────────── */}
-        {item.type === 'reel' && (
+        {optimisticType === 'reel' && (
           <Field label="Video del reel" hint={videoUrl ? 'Il cliente lo vedrà partire aprendo il post.' : 'Senza video il cliente vede solo la copertina.'}>
             <input
               className="input"
