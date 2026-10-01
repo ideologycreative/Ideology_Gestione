@@ -67,7 +67,7 @@
   --text-2: #475569;   /* text-secondary — labels, meta                    */
   --text-3: #64748B;   /* text-muted — placeholders, disabled, captions    */
 
-  --placeholder: #94A3B8;
+  --placeholder: #64748B;   /* = --text-3 — was #94A3B8 at 2.56:1, unreadable */
 
   /* ══ SEMANTIC STATUS ═════════════════════════════════════════════════════
      Each state is an accent + a tinted background + a tinted border, per

@@ -1137,10 +1137,10 @@ body.is-dragging .col { background: rgba(91,80,230,.02); }
   padding: 8px 11px; width: 100%;
   font-family: var(--mono); font-size: 10px;
   letter-spacing: var(--track); text-transform: uppercase;
-  color: var(--text-3); cursor: pointer;
+  color: var(--text-2); cursor: pointer;
   transition: border-color var(--t-fast), color var(--t-fast), background var(--t-fast);
 }
-.toggle:hover { border-color: var(--rule-2); color: var(--text-2); }
+.toggle:hover { border-color: var(--rule-2); color: var(--text); }
 .toggle.is-on {
   border-color: var(--text-accent); color: var(--text-accent);
   background: rgba(91, 80, 230, .07);
@@ -1194,8 +1194,8 @@ body.is-dragging .col { background: rgba(91,80,230,.02); }
 .f { display: flex; flex-direction: column; gap: 6px; }
 .f-row { display: flex; gap: 8px; }
 .f-row > .f { flex: 1; }
-.f-label { font-size: 8px; color: var(--text-3); }
-.f-hint  { margin: 0; font-size: 9px; color: var(--text-3); font-family: var(--mono); letter-spacing: .04em; }
+.f-label { font-size: 8px; color: var(--text-2); }
+.f-hint  { margin: 0; font-size: 9px; color: var(--text-2); font-family: var(--mono); letter-spacing: .04em; }
 
 .input {
   width: 100%;
